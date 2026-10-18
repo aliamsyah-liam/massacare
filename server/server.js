@@ -52,6 +52,7 @@ class Conn {
     this.cleanup();
   }
   onData(d) {
+    this.miss = 0;
     this.buf = Buffer.concat([this.buf, d]);
     while (this.buf.length >= 2 && !this.closed) {
       const b0 = this.buf[0], b1 = this.buf[1], op = b0 & 15, fin = !!(b0 & 128), masked = !!(b1 & 128);
@@ -75,13 +76,24 @@ class Conn {
   onMessage(s) {
     let m; try { m = JSON.parse(s); } catch (e) { return; }
     if (!m || typeof m !== 'object') return;
+    if (m.t === 'k') { this.send('{"t":"k"}'); return; }
     if (m.t === 'join' && !this.room) {
       if (typeof m.room !== 'string' || !ROOM_RE.test(m.room)) return this.close(1008);
       let r = rooms.get(m.room);
-      if (!r) { r = { name: m.room, peers: new Map(), dirty: false }; rooms.set(m.room, r); }
+      if (!r) {
+        if (m.create === false) { this.send(JSON.stringify({ t: 'noroom' })); return this.close(1008); }
+        r = { name: m.room, peers: new Map(), dirty: false, exp: 0 }; rooms.set(m.room, r);
+      }
+      r.exp = 0;
       if (r.peers.size >= MAX_PEERS) { this.send(JSON.stringify({ t: 'full' })); return this.close(1008); }
       this.id = 'p' + String(++counter).padStart(8, '0'); this.room = r; r.peers.set(this.id, this); r.dirty = true;
       this.send(JSON.stringify({ t: 'welcome', id: this.id }));
+      for (const c of r.peers.values()) if (c !== this && c.fc) this.send(JSON.stringify({ t: 'asset', peer: c.id, fc: c.fc }));
+    } else if (m.t === 'a' && this.room) {
+      const fc = (typeof m.fc === 'string' && /^data:image\/jpeg;base64,[A-Za-z0-9+\/=]{20,2600}$/.test(m.fc)) ? m.fc : '';
+      this.fc = fc;
+      const msg = JSON.stringify({ t: 'asset', peer: this.id, fc });
+      for (const c of this.room.peers.values()) if (c !== this) c.send(msg);
     } else if (m.t === 'p' && this.room && m.d && typeof m.d === 'object' && !Array.isArray(m.d)) {
       const ks = Object.keys(m.d);
       if (ks.length > 24) return;
@@ -101,7 +113,7 @@ class Conn {
     this.closed = true;
     try { this.sock.destroy(); } catch (e) { }
     const r = this.room;
-    if (r) { r.peers.delete(this.id); r.dirty = true; if (!r.peers.size) rooms.delete(r.name); }
+    if (r) { r.peers.delete(this.id); r.dirty = true; if (!r.peers.size) r.exp = Date.now() + 120000; }
   }
 }
 
@@ -122,11 +134,15 @@ setInterval(() => {
   }
 }, 50);
 setInterval(() => {
-  for (const r of rooms.values()) for (const c of r.peers.values()) {
-    if (!c.alive) { c.close(1001); continue; }
-    c.alive = false; try { c.sock.write(frame(9, '')); } catch (e) { }
+  for (const r of rooms.values()) {
+    if (!r.peers.size && r.exp && Date.now() > r.exp) { rooms.delete(r.name); continue; }
+    for (const c of r.peers.values()) {
+      if ((c.miss || 0) >= 4) { c.close(1001); continue; }
+      c.miss = (c.miss || 0) + 1; try { c.sock.write(frame(9, '')); } catch (e) { }
+    }
   }
 }, 25000);
 
 if (require.main === module) server.listen(PORT, () => console.log('Massacare server di port ' + PORT));
+server._rooms = rooms;
 module.exports = server;
