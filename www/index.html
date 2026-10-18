@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover,interactive-widget=resizes-content"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Massacare</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Barlow+Condensed:wght@500;600;700&display=swap">
 <style>
@@ -8,9 +8,9 @@
 html,body{height:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--ui);overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none;
 padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
-#c{position:fixed;inset:0;width:100%;height:100%;display:block}
-.scr{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:radial-gradient(ellipse at 50% 40%,#1a0d0c 0,#07090a 70%);z-index:20;padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px));overflow:auto}
-h1{font:400 clamp(40px,11vh,84px)/1 var(--display);color:var(--blood);margin:0;letter-spacing:.06em;text-shadow:0 0 18px rgba(179,33,27,.5)}
+#c{position:fixed;top:0;right:0;bottom:0;left:0;width:100%;height:100%;display:block}
+.scr{position:fixed;top:0;right:0;bottom:0;left:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:12px;background:radial-gradient(ellipse at 50% 40%,#1a0d0c 0,#07090a 70%);z-index:20;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;box-sizing:border-box;padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px));overflow:auto}
+h1{max-width:100%;font:400 clamp(28px,min(11vh,11.5vw),84px)/1 var(--display);color:var(--blood);margin:0;letter-spacing:.06em;text-shadow:0 0 18px rgba(179,33,27,.5)}
 .sub{color:var(--dim);letter-spacing:.2em;text-transform:uppercase;font-size:14px;margin:0}
 .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:100%}
 .map{min-width:0;width:132px;padding:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font:600 16px var(--ui);text-align:left;cursor:pointer;border-radius:2px}
@@ -22,7 +22,7 @@ h1{font:400 clamp(40px,11vh,84px)/1 var(--display);color:var(--blood);margin:0;l
 .btn:focus-visible,.map:focus-visible{outline:2px solid var(--ember);outline-offset:2px}
 .note{max-width:560px;text-align:center;color:var(--dim);font-size:14px;line-height:1.35;margin:0}
 input.code{width:150px;padding:10px;background:#000;border:1px solid var(--line);color:var(--fg);font:600 18px var(--ui);letter-spacing:.2em;text-align:center;text-transform:uppercase;border-radius:2px}
-#hud{position:fixed;inset:0;z-index:10;display:none;pointer-events:none}
+#hud{position:fixed;top:0;right:0;bottom:0;left:0;z-index:10;display:none;pointer-events:none}
 #obj{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));left:max(10px,env(safe-area-inset-left,0px));background:var(--panel);border:1px solid var(--line);padding:8px 12px;font:600 15px/1.3 var(--ui);max-width:42vw}
 #obj b{color:var(--ember);letter-spacing:.14em;font-size:12px;text-transform:uppercase;display:block;margin-bottom:3px}
 #obj .done{color:var(--dim);text-decoration:line-through}
@@ -37,9 +37,9 @@ input.code{width:150px;padding:10px;background:#000;border:1px solid var(--line)
 #toast{position:absolute;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);padding:6px 14px;font:600 16px var(--ui);opacity:0;transition:opacity .25s;white-space:nowrap;max-width:50vw;overflow:hidden;text-overflow:ellipsis}
 #toast.show{opacity:1}
 #cross{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:rgba(255,255,255,.5)}
-#vig{position:fixed;inset:0;z-index:9;pointer-events:none;background:radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,.65) 100%)}
-#danger{position:fixed;inset:0;z-index:9;pointer-events:none;box-shadow:inset 0 0 120px 30px rgba(179,33,27,.9);opacity:0}
-#hidden{position:fixed;inset:0;z-index:11;display:none;align-items:flex-end;justify-content:center;padding-bottom:14px;box-sizing:border-box;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 30%,rgba(0,0,0,.9) 100%);color:#9a9b92;font:400 15px var(--display);text-align:center;pointer-events:none}
+#vig{position:fixed;top:0;right:0;bottom:0;left:0;z-index:9;pointer-events:none;background:radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,.65) 100%)}
+#danger{position:fixed;top:0;right:0;bottom:0;left:0;z-index:9;pointer-events:none;box-shadow:inset 0 0 120px 30px rgba(179,33,27,.9);opacity:0}
+#hidden{position:fixed;top:0;right:0;bottom:0;left:0;z-index:11;display:none;align-items:flex-end;justify-content:center;padding-bottom:14px;box-sizing:border-box;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 30%,rgba(0,0,0,.9) 100%);color:#9a9b92;font:400 15px var(--display);text-align:center;pointer-events:none}
 input.code.nick{width:190px;letter-spacing:.05em;text-transform:none}
 .pl{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 12px;border:1px solid var(--line);background:var(--panel);font:600 16px var(--ui);min-width:96px}
 #mates{position:absolute;left:max(10px,env(safe-area-inset-left,0px));top:calc(92px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:3px;font:600 13px var(--ui)}
@@ -50,15 +50,16 @@ input.code.nick{width:190px;letter-spacing:.05em;text-transform:none}
 #chatRow{display:none;flex-direction:column;gap:6px;pointer-events:auto}#chatQuick{display:flex;gap:5px;flex-wrap:wrap}
 #chatQuick button{padding:5px 9px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font:600 13px var(--ui)}
 #chatIn{flex:1;min-width:0;padding:8px 10px;background:var(--panel);border:1px solid var(--line);color:var(--fg);font:600 15px var(--ui)}#chatRow .btn{padding:8px 14px;font-size:15px}
-#edge{position:absolute;inset:0;pointer-events:none}.pill{position:absolute;transform:translate(-50%,-50%);background:var(--panel);border:1px solid var(--ember);padding:3px 9px;font:600 13px var(--ui);white-space:nowrap;display:none}.pill b{display:inline-block;color:var(--ember)}
+#edge{position:absolute;top:0;right:0;bottom:0;left:0;pointer-events:none}.pill{position:absolute;transform:translate(-50%,-50%);background:var(--panel);border:1px solid var(--ember);padding:3px 9px;font:600 13px var(--ui);white-space:nowrap;display:none}.pill b{display:inline-block;color:var(--ember)}
 .pl i{width:16px;height:16px;border-radius:50%;display:inline-block}.pl small{color:var(--dim)}
 .sw{display:flex;align-items:center;gap:8px;font:600 15px var(--ui)}.sw span{width:70px}
 .sw input{width:48px;height:30px;padding:0;border:1px solid var(--line);background:none}
 #cust{justify-content:safe center;overflow-y:auto}#cust .seg{grid-column:1/-1}
 .seg{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font:600 15px var(--ui)}.seg b{width:70px;font-weight:600}
 .seg button{padding:6px 10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font:600 14px var(--ui);cursor:pointer}.seg button[aria-pressed=true]{border-color:var(--blood);background:rgba(179,33,27,.35)}
-#rot{position:fixed;inset:0;z-index:50;background:var(--bg);display:none;align-items:center;justify-content:center;text-align:center;font:400 22px/1.4 var(--display);padding:24px}
-@media (orientation:portrait){#rot{display:flex}}
+#rot{position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;background:var(--bg);display:none;align-items:center;justify-content:center;text-align:center;font:400 22px/1.4 var(--display);padding:24px}
+@media (orientation:portrait){#hud[style*="block"]~#rot:not(.off){display:flex}}
+#rot small{display:block;margin-top:14px;font:600 15px var(--ui);color:var(--dim)}
 #spec{position:absolute;left:50%;top:calc(52px + env(safe-area-inset-top,0px));transform:translateX(-50%);display:none;align-items:center;gap:8px;pointer-events:auto;background:var(--panel);border:1px solid var(--ember);padding:5px 10px;font:600 15px var(--ui);z-index:3}
 #spec .sb{padding:4px 12px;border:1px solid var(--line);background:transparent;color:var(--fg);font:700 16px var(--ui);cursor:pointer;border-radius:2px}
 #spec b{color:var(--ember);font-size:12px;letter-spacing:.14em;text-transform:uppercase}
@@ -66,9 +67,17 @@ input.code.nick{width:190px;letter-spacing:.05em;text-transform:none}
 #hud.spec #spec{display:flex}
 #hud.spec #joy,#hud.spec #btns{display:none}
 #hud.spec #toast{bottom:auto;top:calc(96px + env(safe-area-inset-top,0px))}
+/* v8: stabil di semua ukuran layar */
+.scr::before,.scr::after{content:"";margin:auto;flex:0 0 0}
+.scr>*{flex-shrink:0;max-width:100%}
+.btn,.map,.hb,.seg button,#spec .sb{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#mnote.err{color:#e8a39f}
+@media (max-height:440px){.scr{gap:7px;padding-top:8px;padding-bottom:8px}h1{font-size:clamp(26px,min(9vh,11.5vw),46px)}.sub{font-size:11px}.btn{padding:8px 14px;font-size:15px}.map{width:112px;padding:6px 8px;font-size:14px}.map small{font-size:11px}input.code{padding:7px;font-size:16px}.note{font-size:12px;line-height:1.25}}
+@media (max-height:340px){.note.long{display:none}.map small{display:none}}
+@media (max-width:560px){.map{width:calc(50% - 8px);max-width:180px}.row{gap:8px}}
 </style>
 <canvas id="c"></canvas>
-<div id="vig"></div><div id="danger"></div><div id="fade" style="position:fixed;inset:0;z-index:12;background:#000;opacity:0;pointer-events:none"></div>
+<div id="vig"></div><div id="danger"></div><div id="fade" style="position:fixed;top:0;right:0;bottom:0;left:0;z-index:12;background:#000;opacity:0;pointer-events:none"></div>
 <div id="hidden">Kamu bersembunyi. Intip lewat celah, jangan bergerak…<br><small style="font:600 13px var(--ui);color:#666">Tekan SEMBUNYI lagi untuk keluar</small></div>
 
 <div class="scr" id="menu">
@@ -83,7 +92,7 @@ input.code.nick{width:190px;letter-spacing:.05em;text-transform:none}
     <button class="btn" id="bJoin">Gabung</button>
   </div>
   <p class="note" id="mnote">Pilih lokasi. Temukan semua item misi, buka pintu keluar, dan hindari sang psikopat. Cahaya ruangan redup, senter membantu melihat.</p>
-  <p class="note"><b>Mabar:</b> tekan <i>Buat Room</i>, lalu kirim kode room 6 karakter ke temanmu (ada tombol <i>Bagikan Kode</i> di lobby). Teman cukup mengetik kode itu dan menekan <i>Gabung</i>. Kalau kamu mati atau tertangkap, kamu bisa menonton teman yang masih hidup.</p>
+  <p class="note long"><b>Mabar:</b> tekan <i>Buat Room</i>, lalu kirim kode room 6 karakter ke temanmu (ada tombol <i>Bagikan Kode</i> di lobby). Teman cukup mengetik kode itu dan menekan <i>Gabung</i>. Kalau kamu mati atau tertangkap, kamu bisa menonton teman yang masih hidup.</p>
 </div>
 
 <div class="scr" id="end" style="display:none">
@@ -134,7 +143,29 @@ input.code.nick{width:190px;letter-spacing:.05em;text-transform:none}
 </div>
 <button class="hb" id="bChat" style="display:none">Chat</button>
 <div id="chatBox"><div id="chatLog"></div><div id="chatRow"><div id="chatQuick"></div><div style="display:flex;gap:6px"><input id="chatIn" maxlength="80" placeholder="Ketik pesan..." autocomplete="off"><button class="btn" id="chatSend">Kirim</button></div></div></div>
-<div id="rot">Putar HP ke mode landscape<br>untuk bermain.</div>
+<div id="rot">Putar HP ke mode landscape<br>untuk bermain.<small>Ketuk layar untuk tetap main</small></div>
+<script>
+/* v8: menu tetap hidup walau mesin 3D / WebGL gagal dimuat, dan kesalahan ditampilkan jelas */
+(function(){
+  var MENU=[['Rumah Sakit','Lorong steril berdarah'],['Sekolah','Kelas kosong, lonceng berbunyi'],['Pabrik Terbengkalai','Mesin berkarat, gelap, bergema'],['Hotel Kosong','Kamar 13 selalu terbuka'],['Rumah Amityville','Jangan dengarkan bisikannya']];
+  var last='';
+  function $(i){return document.getElementById(i)}
+  window.__mcErr=function(e){try{last=String((e&&e.message)||e||'error').slice(0,140);window.__mcLast=last}catch(_){}};
+  function note(t){var n=$('mnote');if(n){n.textContent=t;n.classList.add('err')}}
+  function whyNot(){
+    if(!window.THREE)return 'Mesin grafik 3D tidak termuat. Tutup lalu buka lagi aplikasinya. Kalau masih sama, hapus aplikasi lalu pasang ulang APK terbaru.';
+    return 'Game belum bisa dimuat di perangkat ini'+(last?' ('+last+')':'')+'. Perbarui "Android System WebView" dan Chrome di Play Store, lalu buka ulang aplikasinya.';
+  }
+  window.addEventListener('error',function(ev){window.__mcErr(ev.error||ev.message);if(!window.MC_READY)note(whyNot())});
+  window.addEventListener('unhandledrejection',function(ev){window.__mcErr(ev.reason)});
+  var wrap=$('maps'),sel=0;
+  if(wrap){MENU.forEach(function(m,i){var b=document.createElement('button');b.className='map';b.setAttribute('aria-pressed',i===0?'true':'false');b.textContent=m[0];var s=document.createElement('small');s.textContent=m[1];b.appendChild(s);
+    b.addEventListener('click',function(){if(window.MC_READY)return;sel=i;[].forEach.call(wrap.querySelectorAll('.map'),function(x,j){x.setAttribute('aria-pressed',j===i?'true':'false')})});wrap.appendChild(b)})}
+  ['bSolo','bHost','bJoin','bChar'].forEach(function(id){var el=$(id);if(el)el.addEventListener('click',function(){if(!window.MC_READY)note(whyNot())})});
+  var rot=$('rot');if(rot){rot.addEventListener('click',function(){rot.classList.add('off')});
+    var mq=window.matchMedia&&matchMedia('(orientation:landscape)');if(mq&&mq.addEventListener)mq.addEventListener('change',function(e){if(e.matches)rot.classList.remove('off')})}
+})();
+</script>
 <script src="config.js" onerror="void 0"></script>
 <script src="three.min.js"></script>
 <script>if(!window.THREE)document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>')</script>
@@ -250,7 +281,7 @@ function planLevel(map,seed){
 }
 /* ===== Three.js: renderer, lampu, tekstur ===== */
 const canvas=$('c');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:'high-performance'});
+const renderer=(function(){try{return new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:'high-performance'})}catch(e1){try{return new THREE.WebGLRenderer({canvas,antialias:false})}catch(e2){e2.message='WebGL tidak bisa dibuat: '+(e2.message||'');throw e2}}})();
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(72,1,.05,70);
@@ -260,8 +291,11 @@ const amb=new THREE.AmbientLight(0xffffff,.6);scene.add(amb);
 const flash=new THREE.SpotLight(0xfff0d0,1.8,26,.55,.5,1.2);camera.add(flash);
 const ftgt=new THREE.Object3D();ftgt.position.set(0,0,-1);camera.add(ftgt);flash.target=ftgt;
 const nearL=new THREE.PointLight(0xffe0b0,.5,7);camera.add(nearL);
-function resize(){const w=window.innerWidth,h=window.innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
-window.addEventListener('resize',resize);resize();
+let RW=0,RH=0;
+function resize(){const w=window.innerWidth||document.documentElement.clientWidth,h=window.innerHeight||document.documentElement.clientHeight;if(!w||!h)return;RW=w;RH=h;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
+const resizeSoon=()=>{resize();[120,400,900].forEach(t=>setTimeout(resize,t))};
+window.addEventListener('resize',resize);window.addEventListener('orientationchange',resizeSoon);document.addEventListener('fullscreenchange',resizeSoon);
+if(window.visualViewport)visualViewport.addEventListener('resize',resize);resize();
 
 function mkTex(base,seed,kind){
   const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d'),R=rng(seed);
@@ -901,6 +935,12 @@ function showEnd(win){
 
 /* ===== Alur permainan ===== */
 function startGame(idx,mode,code){
+  try{startGameInner(idx,mode,code)}catch(e){
+    try{window.__mcErr(e);S.on=false;$('hud').style.display='none';$('lobby').style.display='none';$('end').style.display='none';$('menu').style.display='flex';
+      const n=$('mnote');n.classList.add('err');n.textContent='Gagal memulai game: '+((e&&e.message)||e)+'. Coba lagi atau pilih lokasi lain.'}catch(_){}
+  }
+}
+function startGameInner(idx,mode,code){
   audioInit();menuMusic(false);
   try{const el=document.documentElement;if(el.requestFullscreen)el.requestFullscreen().catch(()=>{});if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('landscape').catch(()=>{})}catch(e){}
   const map=MAPS[idx];S.map=map;S.mode=mode;S.code=code||'';
@@ -921,8 +961,12 @@ function startGame(idx,mode,code){
   S.on=true;updateObj();toast(mode==='online'?'Kode room: '+code+' (bagikan ke temanmu)':map.mission.goal);
   if(!started){started=true;lastTs=performance.now();requestAnimationFrame(loop)}
 }
+let LOOPERR=0;
 function loop(now){
   requestAnimationFrame(loop);
+  try{if(innerWidth!==RW||innerHeight!==RH)resize();loopBody(now)}catch(e){window.__mcErr(e);if(++LOOPERR===1)try{toast('Terjadi kesalahan kecil, game tetap jalan')}catch(_){}}
+}
+function loopBody(now){
   const dt=Math.min(.05,(now-lastTs)/1000);lastTs=now;
   if(!S.on)return;
   S.t+=dt;
@@ -972,7 +1016,7 @@ function loop(now){
 
 /* ===== Menu ===== */
 (function(){
-  const wrap=$('maps');
+  const wrap=$('maps');wrap.textContent='';
   MAPS.forEach((m,i)=>{
     const b=document.createElement('button');b.className='map';b.setAttribute('aria-pressed',i===0?'true':'false');
     b.textContent=m.name;const s=document.createElement('small');s.textContent=m.sub;b.appendChild(s);
@@ -992,6 +1036,7 @@ function loop(now){
   $('bAgain').addEventListener('click',()=>{S.mode==='online'?startGame(S.map.id,'online',S.code):startGame(S.map.id,'solo','')});
   const toMenu=()=>{menuMusic(true);S.on=false;S.spec=null;SPV=null;$('hud').classList.remove('spec');if(MP.on)mpLeave();$('hud').style.display='none';$('end').style.display='none';$('menu').style.display='flex';$('hidden').style.display='none';RUN=false};
   $('bMenu').addEventListener('click',toMenu);$('bPause').addEventListener('click',toMenu);
+  window.MC_READY=true;
 })();
 /* ===== Mabar online (kanal room: semua pemain dalam satu kode) ===== */
 let ROOM=null;
