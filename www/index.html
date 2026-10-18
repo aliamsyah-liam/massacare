@@ -44,6 +44,12 @@ input.code.nick{width:190px;letter-spacing:.05em;text-transform:none}
 .pl{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 12px;border:1px solid var(--line);background:var(--panel);font:600 16px var(--ui);min-width:96px}
 #mates{position:absolute;left:max(10px,env(safe-area-inset-left,0px));top:calc(92px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:3px;font:600 13px var(--ui)}
 .mt{background:var(--panel);border:1px solid var(--line);padding:2px 8px;display:flex;align-items:center;gap:6px}.mt i{width:10px;height:10px;border-radius:50%;display:inline-block}
+#bChat{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:32;width:auto;height:36px;border-radius:18px;padding:0 16px}
+#chatBox{position:fixed;top:calc(52px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);width:min(72vw,480px);z-index:31;display:none;flex-direction:column;gap:6px;pointer-events:none}
+#chatLog{display:flex;flex-direction:column;gap:3px;font:600 14px var(--ui)}#chatLog div{background:rgba(7,9,10,.74);border:1px solid var(--line);padding:3px 8px;word-break:break-word}
+#chatRow{display:none;flex-direction:column;gap:6px;pointer-events:auto}#chatQuick{display:flex;gap:5px;flex-wrap:wrap}
+#chatQuick button{padding:5px 9px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font:600 13px var(--ui)}
+#chatIn{flex:1;min-width:0;padding:8px 10px;background:var(--panel);border:1px solid var(--line);color:var(--fg);font:600 15px var(--ui)}#chatRow .btn{padding:8px 14px;font-size:15px}
 #edge{position:absolute;inset:0;pointer-events:none}.pill{position:absolute;transform:translate(-50%,-50%);background:var(--panel);border:1px solid var(--ember);padding:3px 9px;font:600 13px var(--ui);white-space:nowrap;display:none}.pill b{display:inline-block;color:var(--ember)}
 .pl i{width:16px;height:16px;border-radius:50%;display:inline-block}.pl small{color:var(--dim)}
 .sw{display:flex;align-items:center;gap:8px;font:600 15px var(--ui)}.sw span{width:70px}
@@ -73,7 +79,7 @@ input.code.nick{width:190px;letter-spacing:.05em;text-transform:none}
   <div class="row">
     <button class="btn main" id="bSolo">Main Offline</button>
     <button class="btn" id="bHost">Mabar: Buat Room</button>
-    <input class="code" id="code" maxlength="6" placeholder="KODE" aria-label="Kode room">
+    <input class="code" id="code" maxlength="60" placeholder="KODE" aria-label="Kode room" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false">
     <button class="btn" id="bJoin">Gabung</button>
   </div>
   <p class="note" id="mnote">Pilih lokasi. Temukan semua item misi, buka pintu keluar, dan hindari sang psikopat. Cahaya ruangan redup, senter membantu melihat.</p>
@@ -126,6 +132,8 @@ input.code.nick{width:190px;letter-spacing:.05em;text-transform:none}
   <p class="note">Bagikan kode ini ke temanmu. Siapa pun bisa menekan Mulai, dan semua pemain di lobby ikut masuk.</p>
   <div class="row"><button class="btn" id="lbShare">Bagikan Kode</button><button class="btn main" id="lbGo">Mulai Game</button><button class="btn" id="lbLeave">Keluar</button></div>
 </div>
+<button class="hb" id="bChat" style="display:none">Chat</button>
+<div id="chatBox"><div id="chatLog"></div><div id="chatRow"><div id="chatQuick"></div><div style="display:flex;gap:6px"><input id="chatIn" maxlength="80" placeholder="Ketik pesan..." autocomplete="off"><button class="btn" id="chatSend">Kirim</button></div></div></div>
 <div id="rot">Putar HP ke mode landscape<br>untuk bermain.</div>
 <script src="config.js" onerror="void 0"></script>
 <script src="three.min.js"></script>
@@ -407,16 +415,16 @@ function updateObj(){
 function collect(id,remote){
   if(S.got.has(id))return;S.got.add(id);
   let it=null;for(const f of FL){const x=f.L.items.find(i=>i.id===id);if(x)it=x}if(it){it.got=true;it.mesh.visible=false}
-  blip(remote?420:640);toast(remote?'Temanmu menemukan '+S.map.mission.item:S.map.mission.item+' diambil ('+S.got.size+'/'+S.map.mission.n+')');
+  blip(remote?420:640);if(!remote)vmReach();toast(remote?'Temanmu menemukan '+S.map.mission.item:S.map.mission.item+' diambil ('+S.got.size+'/'+S.map.mission.n+')');
   updateObj();
 }
 function nearestItem(r){let b=null,bd=r;for(const it of L.items){if(it.got||(it.cont&&it.cont.o<.5))continue;const d=Math.hypot(it.x-S.x,it.z-S.z);if(d<bd){bd=d;b=it}}return b}
 function nearestHide(r){let b=null,bd=r;for(const h of L.hides){const d=Math.hypot(h.x-S.x,h.z-S.z);if(d<bd){bd=d;b=h}}return b}
-function toggleFlash(){S.flash=!S.flash;flash.visible=S.flash&&!S.hid;$('bLight').classList.toggle('on',S.flash)}
+function toggleFlash(){VM.dip=1;S.flash=!S.flash;flash.visible=S.flash&&!S.hid;$('bLight').classList.toggle('on',S.flash)}
 
 /* ===== Input ===== */
-addEventListener('keydown',e=>{K[e.code]=1;if(e.code==='KeyF')toggleFlash();if(e.code==='KeyE')doTake();if(e.code==='KeyH'||e.code==='KeyQ')doHide()});
-addEventListener('keyup',e=>{K[e.code]=0});
+addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;K[e.code]=1;if(e.code==='KeyF')toggleFlash();if(e.code==='KeyE')doTake();if(e.code==='KeyH'||e.code==='KeyQ')doHide()});
+addEventListener('keyup',e=>{if(e.target&&e.target.tagName==='INPUT')return;K[e.code]=0});
 $('bLight').addEventListener('click',toggleFlash);
 $('bTake').addEventListener('click',doTake);
 $('bHide').addEventListener('click',doHide);
@@ -563,7 +571,8 @@ function camFrame(dt,cy,md){
   }
   let cyaw=S.yaw,cpit=S.pitch;
   if(S.spec&&SPV){cx=SPV.x;cz=SPV.z;cy=SPV.y;cyaw=SPV.yaw;cpit=SPV.pitch}else if(S.dead)cy=1.2;
-  camera.position.set(cx,cy,cz);camera.rotation.set(cpit,cyaw,0);
+  camera.position.set(cx,cy,cz);camera.rotation.set(cpit,cyaw,(S.spec||S.dead)?0:VM.roll);
+  vmFrame(dt);
   updDoors(dt);updConts(dt);lampFX(cx,cz);
   for(const h of L.hides)if(h.dp){const t=S.hid===h?(S.hA<.5?1.7:.04):0;h.da+=(t-h.da)*Math.min(1,dt*7);h.dp.rotation.y=-h.da}
   const pv=L.exit.piv;pv.rotation.y+=((L.exit.open?-1.5:0)-pv.rotation.y)*Math.min(1,dt*3);
@@ -662,7 +671,7 @@ function extras(map,group,R,plan,wm,WN){
   });
   L.hides.filter(h=>h.kind==='table').forEach(h=>slots.push({x:h.x,y:1.02,z:h.z,cont:null,out:0}));
   if(FLEV===0){
-    mkGrass(group);mkFence(group);
+    mkGrass(group);mkFence(group);if((FLOORS[map.id]||1)>1)mkShell(group,wm,FLOORS[map.id]);
     const gt=glowTex(),yc=[];
     for(let y=2;y<GH-2;y++)for(let x=2;x<GW-2;x++)if(grid[y*GW+x]===0&&(x<FP.x0-1||x>FP.x1+1||y<FP.y0-1||y>FP.y1+1)&&!tk.has(x+','+y))yc.push([x,y]);
     yc.sort(()=>R()-.5);
@@ -694,7 +703,7 @@ function doTake(){
   if(!S.on||S.dead||S.esc||S.clb)return;
   if(S.hid){toast('Keluar dulu dari persembunyian');return}
   const it=nearestItem(3.2);if(it){collect(it.id);return}
-  const c=nearestCont(3.1);if(c){c.open=!c.open;sfxCont(c.k,c.open,c.x,c.z);toast(c.open?'Dibuka':'Ditutup');return}
+  const c=nearestCont(3.1);if(c){c.open=!c.open;sfxCont(c.k,c.open,c.x,c.z);vmReach();toast(c.open?'Dibuka':'Ditutup');return}
   const st=nearestStair(3.2);if(st){S.clb={t:0,st,sx:S.x,sz:S.z,done:false};blip(300);return}
   toast('Tidak ada yang bisa diambil');
 }
@@ -764,7 +773,7 @@ function lobbyTick(){
   if(!MP.room){clearInterval(LBT);return}
   const ps=MP.room.peers().filter(p=>p.kind==='viewer'&&p.presence&&(p.presence.lb===1||p.presence.g===1)),ul=$('lbList');ul.textContent='';
   ps.forEach(p=>{const li=document.createElement('div');li.className='pl';const c=p.presence.c;const pv=document.createElement('div');pv.innerHTML=pvSvg(c,54,p.presence.fc);const t=document.createElement('span');t.textContent=cleanNick(p.presence.n)||'Pemain';li.appendChild(pv);li.appendChild(t);if(p.sameTab){const m=document.createElement('small');m.textContent=' (kamu)';li.appendChild(m)}ul.appendChild(li)});
-  $('lbN').textContent=ps.length+' pemain di lobby';
+  chatPoll();$('lbN').textContent=ps.length+' pemain di lobby'+((MP.room.online&&!MP.room.online())?' · menyambung ulang ke server…':'');
   if(!S.on&&ps.some(p=>p.presence.go===1||p.presence.g===1)){clearInterval(LBT);startGame(+MP.code.slice(-1),'online',MP.code)}
 }
 $('lbGo').addEventListener('click',()=>{if(!MP.room)return;MP.room.presence({go:1}).catch(()=>{});clearInterval(LBT);startGame(+MP.code.slice(-1),'online',MP.code)});
@@ -896,7 +905,7 @@ function startGame(idx,mode,code){
   try{const el=document.documentElement;if(el.requestFullscreen)el.requestFullscreen().catch(()=>{});if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('landscape').catch(()=>{})}catch(e){}
   const map=MAPS[idx];S.map=map;S.mode=mode;S.code=code||'';
   S.seed=code?hashStr(code):((Math.random()*4e9)>>>0);
-  buildAll(map,S.seed);
+  buildAll(map,S.seed);vmBuild();
   S.got=new Set();S.dead=S.esc=false;S.hid=null;S.hDir=0;S.clb=null;S.f=0;S.stam=1;S.runLock=false;S.flash=true;S.t=0;S.deadT=0;
   S.spec=null;SPV=null;$('hud').classList.remove('spec');flash.visible=true;$('bLight').classList.add('on');$('hidden').style.display='none';$('danger').style.opacity=0;
   S.x=L.start.x;S.z=L.start.z;S.pitch=0;
@@ -973,12 +982,12 @@ function loop(now){
   $('bSolo').addEventListener('click',()=>{if(MP.on)mpLeave();startGame(selMap,'solo','')});
   $('bHost').addEventListener('click',()=>{
     const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let c='';for(let i=0;i<5;i++)c+=A[Math.floor(Math.random()*A.length)];
-    try{navigator.clipboard.writeText(c+selMap)}catch(e){}startOnline(c+selMap);
+    try{navigator.clipboard.writeText(c+selMap)}catch(e){}startOnline(c+selMap,true);
   });
   $('bJoin').addEventListener('click',()=>{
-    const c=$('code').value.trim().toUpperCase();
-    if(!/^[A-Z0-9]{5}[0-4]$/.test(c)){$('mnote').textContent='Kode room tidak valid. Contoh: K7M2Q3 (5 karakter + angka map).';return}
-    selMap=+c.slice(-1);startOnline(c);
+    const c=parseCode($('code').value);
+    if(!c){$('mnote').textContent='Kode room tidak valid. Contoh: K7M2Q3 (5 karakter + angka lokasi). Kamu juga bisa menempel pesan dari temanmu langsung.';return}
+    $('code').value=c;selMap=+c.slice(-1);startOnline(c,false);
   });
   $('bAgain').addEventListener('click',()=>{S.mode==='online'?startGame(S.map.id,'online',S.code):startGame(S.map.id,'solo','')});
   const toMenu=()=>{menuMusic(true);S.on=false;S.spec=null;SPV=null;$('hud').classList.remove('spec');if(MP.on)mpLeave();$('hud').style.display='none';$('end').style.display='none';$('menu').style.display='flex';$('hidden').style.display='none';RUN=false};
@@ -987,14 +996,28 @@ function loop(now){
 /* ===== Mabar online (kanal room: semua pemain dalam satu kode) ===== */
 let ROOM=null;
 const AV_COLORS=[0x3a6ea5,0x3f8f5a,0xa5823a,0x7a4aa5,0xa54a6a,0x4aa5a0];
-async function startOnline(code){
+async function startOnline(code,create){
   audioInit();
   $('mnote').textContent='Menyambung ke room '+code+'…';
-  const ok=await mpJoin(code);
-  if(!ok){$('mnote').textContent=(!getServer()&&!window.claude)?'Server mabar belum dipasang di game ini. Pemilik game cukup mengisi config.js satu kali (window.MC_SERVER), lalu pemain tinggal memasukkan kode room. Main Offline tetap bisa dipakai.':'Tidak bisa tersambung ke server mabar. Periksa koneksi internet lalu coba lagi (server gratis bisa butuh sekitar 50 detik untuk bangun). Main Offline tetap bisa dipakai.';return}
+  const ok=await mpJoin(code,create);
+  if(!ok){$('mnote').textContent=joinErrMsg();return}
   showLobby(code);
 }
-async function mpJoin(code){
+function joinErrMsg(){
+  const e=MP.err;
+  if(!getServer()&&!window.claude)return'Server mabar belum dipasang di game ini. Pemilik game cukup mengisi config.js satu kali (window.MC_SERVER), lalu pemain tinggal memasukkan kode room. Main Offline tetap bisa dipakai.';
+  if(e==='noroom')return'Room tidak ditemukan. Pastikan kodenya benar dan temanmu masih berada di lobby (jangan menutup aplikasinya).';
+  if(e==='full')return'Room sudah penuh (maksimal 8 pemain).';
+  if(e==='timeout')return'Server belum merespons. Tunggu sebentar lalu coba lagi.';
+  return'Tidak bisa tersambung ke server mabar. Periksa koneksi internet lalu coba lagi.';
+}
+function parseCode(raw){
+  const up=String(raw||'').toUpperCase(),fix=t=>t.length===6?t.slice(0,5)+t[5].replace('O','0').replace(/[IL]/,'1'):t,ok=t=>/^[A-Z0-9]{5}[0-4]$/.test(t);
+  for(const t of up.split(/[^A-Z0-9]+/)){const c=fix(t);if(ok(c))return c}
+  const j=fix(up.replace(/[^A-Z0-9]/g,''));return ok(j)?j:'';
+}
+async function mpJoin(code,create){
+  MP.err='';
   try{
     const url=getServer();let prov=null;
     if(url)prov=wsProvider(url);
@@ -1002,15 +1025,15 @@ async function mpJoin(code){
     if(!prov)return false;
     if(MP.room&&MP.code===code&&MP.url===url){MP.on=true;return true}
     if(MP.room)mpLeave();
-    MP.room=await prov.join('mc-'+code.toLowerCase());
+    MP.room=await prov.join('mc-'+code.toLowerCase(),create);
     MP.code=code;MP.url=url;MP.on=true;MP.caught=[];
     return true;
-  }catch(e){return false}
+  }catch(e){MP.err=e&&e.message;return false}
 }
 function mpLeave(){
   const r=MP.room;MP.room=null;MP.on=false;MP.code='';MP.myPeer=null;MP.isHost=true;MP.caught=[];
   MP.av.forEach(a=>{scene.remove(a.mesh);disposeGroup(a.mesh)});MP.av.clear();
-  if(r)r.presence({g:null,x:null,z:null,m:null,k:null,i:null,go:null,lb:null,n:null,c:null,fc:null}).catch(()=>{}).then(()=>r.leave()).catch(()=>{});
+  if(r)r.presence({g:null,x:null,z:null,m:null,k:null,i:null,go:null,lb:null,n:null,c:null,fc:null,ch:null,ac:null}).catch(()=>{}).then(()=>r.leave()).catch(()=>{});
 }
 function mpEnter(){MP.caught=[];MP.push=0;sendFace()}
 const num=v=>typeof v==='number'&&isFinite(v);
@@ -1022,6 +1045,7 @@ function mpRemotes(){
   return activePeers().filter(p=>!p.sameTab&&!p.isMe&&num(p.presence.x)&&num(p.presence.z)).map(p=>({id:p.peer,x:p.presence.x,z:p.presence.z,hid:!!p.presence.h,run:!!p.presence.r,flash:!!p.presence.f&&!p.presence.h,dead:!!p.presence.d||!!p.presence.e,fl:p.presence.fl|0}));
 }
 function mpFrame(dt){
+  chatPoll();
   if(!MP.room)return;
   const all=MP.room.peers(),me=all.find(p=>p.sameTab);if(me)MP.myPeer=me.peer;
   const act=activePeers();
@@ -1051,7 +1075,7 @@ function mpFrame(dt){
     animateHuman(mm,Math.hypot(dx,dz)*10,S.t);
     const gone=!!p.presence.e,dead=!!p.presence.d;
     mm.visible=!p.presence.h&&!gone&&(p.presence.fl|0)===S.f&&!(S.spec&&S.spec.id===p.peer);
-    mm.userData.lamp.visible=!!p.presence.f;
+    mm.userData.lamp.visible=!!p.presence.f;{const u=mm.userData;if(p.presence.f)u.aR.rotation.x=-1.4;if(p.presence.ac)u.aL.rotation.x=-1.2}
     mm.userData.tag.visible=!dead;mm.rotation.x=dead?-Math.PI/2:0;mm.position.y=dead?.25:0;
   }
   MP.av.forEach((a,id)=>{if(!seen.has(id)){scene.remove(a.mesh);disposeGroup(a.mesh);MP.av.delete(id)}});
@@ -1059,7 +1083,7 @@ function mpFrame(dt){
   if(MP.push<=0){
     MP.push=.1;
     MP.caught=MP.caught.filter(c=>S.t-c.t<2.5);
-    const p={g:1,x:+S.x.toFixed(2),z:+S.z.toFixed(2),ry:+S.yaw.toFixed(2),h:S.hid?1:0,r:S.running?1:0,f:(S.flash&&!S.hid)?1:0,d:S.dead?1:0,e:S.esc?1:0,i:Array.from(S.got),py:+S.pitch.toFixed(2),fl:S.f|0,lb:null,n:PROF.n,c:PROF.c};
+    const p={g:1,x:+S.x.toFixed(2),z:+S.z.toFixed(2),ry:+S.yaw.toFixed(2),h:S.hid?1:0,r:S.running?1:0,f:(S.flash&&!S.hid)?1:0,d:S.dead?1:0,e:S.esc?1:0,i:Array.from(S.got),py:+S.pitch.toFixed(2),fl:S.f|0,lb:null,n:PROF.n,c:PROF.c,ac:(VM.on&&VM.rt<1)?1:0};
     if(MP.isHost){p.m=[+MON.x.toFixed(2),+MON.z.toFixed(2),+MON.ry.toFixed(2),MON.st[0],S.f|0];p.k=MP.caught.map(c=>c.id)}
     else{p.m=null;p.k=null}
     MP.room.presence(p).catch(()=>{});
@@ -1136,42 +1160,59 @@ function getServer(){return normSrv(window.MC_SERVER)||defaultSrv()}
 
 /* ---- klien room lewat WebSocket: API sama seperti room artifact (presence/peers/leave) ---- */
 function wsProvider(url){
-  return{join:name=>new Promise((res,rej)=>{
-    let ws;try{ws=new WebSocket(url)}catch(e){return rej(e)}
-    const st={peers:[],me:null,pres:{},open:false,left:false,assets:{},fc:null};let done=false;
-    const to=setTimeout(()=>{if(!done){done=true;try{ws.close()}catch(e){}rej(new Error('timeout'))}},9000);
+  return{join:(name,create)=>new Promise((res,rej)=>{
+    const st={peers:[],me:null,pres:{},open:false,left:false,assets:{},fc:null,ws:null,tries:0,first:true,k:false,rx:0};let done=false,rt=null,hb=null,chk=null;
+    const send=o=>{if(st.ws&&st.ws.readyState===1)try{st.ws.send(JSON.stringify(o))}catch(e){}};
+    const fail=m=>{if(done)return;done=true;clearTimeout(to);st.left=true;clearInterval(hb);try{st.ws&&st.ws.close()}catch(e){}rej(new Error(m))};
+    const to=setTimeout(()=>fail('timeout'),15000);
+    const reset=()=>{const o=st.ws;st.ws=null;st.open=false;try{o&&o.close()}catch(e){}connect()};
+    const wake=()=>{
+      if(st.left||!done)return;
+      if(!st.ws||st.ws.readyState!==1){clearTimeout(rt);connect();return}
+      if(st.k){send({t:'k'});clearTimeout(chk);chk=setTimeout(()=>{if(!st.left&&Date.now()-st.rx>3500)reset()},3500)}
+    };
+    const vis=()=>{if(!document.hidden)wake()};
     const api={
-      presence(o){
-        for(const k in o){if(o[k]===null)delete st.pres[k];else st.pres[k]=o[k]}
-        if(st.open&&ws.readyState===1)try{ws.send(JSON.stringify({t:'p',d:o}))}catch(e){}
-        return Promise.resolve();
-      },
+      presence(o){for(const k in o){if(o[k]===null)delete st.pres[k];else st.pres[k]=o[k]}if(st.open)send({t:'p',d:o});return Promise.resolve()},
       peers(){
         const out=[];
         for(const p of st.peers)if(p.peer!==st.me)out.push({peer:p.peer,kind:'viewer',presence:p.presence||{},sameTab:false,isMe:false});
         if(st.me)out.push({peer:st.me,kind:'viewer',presence:st.pres,sameTab:true,isMe:true});
         return out;
       },
-      asset(fc){st.fc=fc||null;if(st.open&&ws.readyState===1)try{ws.send(JSON.stringify({t:'a',fc:fc||''}))}catch(e){}},
-      leave(){st.left=true;st.open=false;try{ws.close()}catch(e){}return Promise.resolve()}
+      asset(fc){st.fc=fc||null;if(st.open)send({t:'a',fc:fc||''})},
+      online(){return st.open},
+      leave(){st.left=true;st.open=false;clearInterval(hb);clearTimeout(rt);clearTimeout(chk);document.removeEventListener('visibilitychange',vis);removeEventListener('online',wake);try{st.ws&&st.ws.close()}catch(e){}return Promise.resolve()}
     };
-    ws.onopen=()=>{try{ws.send(JSON.stringify({t:'join',room:name}))}catch(e){}};
-    ws.onmessage=ev=>{
-      let m;try{m=JSON.parse(ev.data)}catch(e){return}
-      if(m.t==='welcome'){
-        st.me=m.id;st.open=true;
-        if(Object.keys(st.pres).length)try{ws.send(JSON.stringify({t:'p',d:st.pres}))}catch(e){}
-        if(st.fc)try{ws.send(JSON.stringify({t:'a',fc:st.fc}))}catch(e){}
-        if(!done){done=true;clearTimeout(to);res(api)}
-      }else if(m.t==='state'&&Array.isArray(m.peers)){st.peers=m.peers;for(const p of st.peers){const f=st.assets[p.peer];if(f&&p.presence)p.presence.fc=f}}
-      else if(m.t==='asset'&&typeof m.peer==='string'){if(typeof m.fc==='string'&&m.fc){st.assets[m.peer]=m.fc;for(const p of st.peers)if(p.peer===m.peer&&p.presence)p.presence.fc=m.fc}else delete st.assets[m.peer]}
-    };
-    ws.onerror=()=>{if(!done){done=true;clearTimeout(to);rej(new Error('ws'))}};
-    ws.onclose=()=>{
-      st.open=false;st.peers=[];
-      if(!done){done=true;clearTimeout(to);rej(new Error('closed'))}
-      else if(!st.left){try{if(S.on)toast('Koneksi ke server terputus')}catch(e){}}
-    };
+    function sched(){if(st.left)return;clearTimeout(rt);st.tries++;rt=setTimeout(connect,Math.min(4000,600*st.tries))}
+    function connect(){
+      if(st.left)return;
+      let ws;try{ws=new WebSocket(url)}catch(e){if(done)sched();else fail('ws');return}
+      st.ws=ws;
+      ws.onopen=()=>{try{ws.send(JSON.stringify({t:'join',room:name,create:st.first?!!create:true}))}catch(e){}};
+      ws.onmessage=ev=>{
+        if(st.ws!==ws)return;st.rx=Date.now();
+        let m;try{m=JSON.parse(ev.data)}catch(e){return}
+        if(m.t==='welcome'){
+          const again=!st.first;st.me=m.id;st.open=true;st.tries=0;st.first=false;
+          if(Object.keys(st.pres).length)send({t:'p',d:st.pres});if(st.fc)send({t:'a',fc:st.fc});
+          if(!done){done=true;clearTimeout(to);res(api)}else if(again){try{toast('Tersambung kembali')}catch(e){}}
+        }else if(m.t==='k')st.k=true;
+        else if(m.t==='noroom')fail('noroom');
+        else if(m.t==='full')fail('full');
+        else if(m.t==='state'&&Array.isArray(m.peers)){st.peers=m.peers;for(const p of st.peers){const f=st.assets[p.peer];if(f&&p.presence)p.presence.fc=f}}
+        else if(m.t==='asset'&&typeof m.peer==='string'){if(typeof m.fc==='string'&&m.fc){st.assets[m.peer]=m.fc;for(const p of st.peers)if(p.peer===m.peer&&p.presence)p.presence.fc=m.fc}else delete st.assets[m.peer]}
+      };
+      ws.onerror=()=>{};
+      ws.onclose=()=>{
+        if(st.ws!==ws)return;st.open=false;st.peers=[];
+        if(!done)fail('closed');
+        else if(!st.left){try{if(S.on)toast('Koneksi terputus, menyambung ulang…')}catch(e){}sched()}
+      };
+    }
+    hb=setInterval(()=>{if(st.left||!st.open)return;send({t:'k'});if(st.k&&Date.now()-st.rx>20000)reset()},6000);
+    document.addEventListener('visibilitychange',vis);addEventListener('online',wake);
+    connect();
   })};
 }
 
@@ -1179,7 +1220,7 @@ function wsProvider(url){
 /* ---- bagikan kode room ---- */
 $('lbShare').addEventListener('click',async()=>{
   const code=($('lbCode').textContent||'').trim(),url=getServer().replace(/^ws/,'http'),
-    txt='Ayo main Massacare bareng! Kode room: '+code+(url&&!window.MC_SERVER?'\nServer: '+url:'');
+    txt='Ayo main Massacare bareng!\nKode room: '+code+(url&&!window.MC_SERVER?'\nServer: '+url:'');
   const note=$('lbN'),old=note.textContent;
   try{
     if(navigator.share){await navigator.share({text:txt});return}
@@ -1339,6 +1380,100 @@ function sendFace(){const r=MP.room;if(!r)return;const fc=faceOk(PROF.fc)?PROF.f
   $('faceDel').addEventListener('click',()=>{PROF.fc=null;saveProf();drawPv();sendFace();$('faceNote').textContent='Foto dihapus.'});
 })();
 
+/* ===== v8: tangan orang pertama, bangunan bertingkat terlihat dari luar, chat ===== */
+const VM={g:null,R:null,L:null,lens:null,dip:0,rt:1,hw:0,sp:0,lx:0,lz:0,ly:0,lp:0,hx:0,hy:0,roll:0,on:false,v:new THREE.Vector3()};
+function vmBuild(){
+  if(VM.g){camera.remove(VM.g);disposeGroup(VM.g)}
+  const c=normC(PROF.c),sh=c[0],sk=c[2],em=new THREE.Color(sh).multiplyScalar(.22).getHex(),es=new THREE.Color(sk).multiplyScalar(.25).getHex();
+  const lam=(col,e)=>{const m=new THREE.MeshLambertMaterial({color:col,emissive:e});m.depthTest=false;return m};
+  const ms=lam(sh,em),mc=lam(new THREE.Color(sh).multiplyScalar(.6).getHex(),0x050505),mk=lam(sk,es),mf=lam(0x1c1d1f,0x0a0a0a);
+  const bx=(p,w,h,d,m,x,y,z,o)=>{const e=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);e.position.set(x,y,z);e.renderOrder=1000+(o||0);e.frustumCulled=false;p.add(e);return e};
+  const arm=right=>{const a=new THREE.Group();bx(a,.1,.1,.5,ms,0,0,-.25,0);bx(a,.11,.11,.05,mc,0,0,-.5,1);bx(a,.09,.07,.1,mk,0,0,-.57,2);bx(a,.085,.04,.07,mk,0,-.03,-.64,2);bx(a,.03,.03,.07,mk,right?-.05:.05,.02,-.6,2);return a};
+  const R=arm(true),L=arm(false),cy=(r1,r2,h,z,o)=>{const e=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,h,10),mf);e.rotation.x=Math.PI/2;e.position.set(0,.005,z);e.renderOrder=o;e.frustumCulled=false;R.add(e)};
+  cy(.032,.032,.26,-.6,1003);cy(.045,.034,.08,-.74,1003);
+  const lens=new THREE.Mesh(new THREE.CircleGeometry(.04,12),new THREE.MeshBasicMaterial({color:0xfff4c8,side:THREE.DoubleSide,depthTest:false}));lens.position.set(0,.005,-.782);lens.renderOrder=1004;lens.frustumCulled=false;R.add(lens);
+  const g=new THREE.Group();g.add(R);g.add(L);camera.add(g);Object.assign(VM,{g,R,L,lens});
+}
+function vmReach(){VM.rt=0}
+function vmFrame(dt){
+  const g=VM.g;if(!g)return;
+  const vis=S.on&&!S.dead&&!S.spec;g.visible=vis;VM.on=vis;if(!vis)return;
+  const k8=Math.min(1,dt*8),dd=Math.max(dt,.001);
+  let sp=0;if(!S.hid&&!S.clb){const d=Math.hypot(S.x-VM.lx,S.z-VM.lz);if(d<2)sp=Math.min(1.4,d/dd/5)}else if(S.clb)sp=1;
+  VM.lx=S.x;VM.lz=S.z;VM.sp+=(sp-VM.sp)*k8;
+  const w=VM.sp,b=S.bob,run=S.running?1.5:1,vy=(S.yaw-VM.ly)/dd,vp=(S.pitch-VM.lp)/dd;VM.ly=S.yaw;VM.lp=S.pitch;
+  VM.hx+=(Math.max(-.14,Math.min(.14,-vy*.03))-VM.hx)*k8;VM.hy+=(Math.max(-.1,Math.min(.1,-vp*.03))-VM.hy)*k8;
+  VM.dip=Math.max(0,VM.dip-dt*3.2);const dp=Math.sin(VM.dip*Math.PI);
+  VM.rt=Math.min(1,VM.rt+dt/.75);const r=Math.sin(VM.rt*Math.PI);
+  VM.hw+=((S.hid?1:0)-VM.hw)*Math.min(1,dt*6);const hw=VM.hw,br=Math.sin(S.t*1.6)*.004;
+  let rx=.26+Math.cos(b*.5)*.012*w*run+VM.hx*.25,ry=-.3+Math.sin(b)*.016*w*run+br-dp*.12-(S.flash?0:.05),rz=-.05,
+      rrx=.02+Math.sin(b)*.05*w*run+VM.hy-dp*.5,rry=.1+VM.hx,rrz=Math.cos(b*.5)*.04*w*run,
+      lx=-.27-Math.cos(b*.5)*.012*w*run+r*.2,ly=-.34+Math.sin(b+Math.PI)*.016*w*run+br+r*.16,lz=-.05-r*.3,
+      lrx=-.25+Math.sin(b+Math.PI)*.05*w*run+r*.35+VM.hy,lry=-.12+r*.5+VM.hx,lrz=0;
+  if(hw>.001){
+    const lk=S.hid&&S.hid.kind==='locker',mv=S.hA<1,push=lk&&mv&&((S.hDir>0&&S.hA<.6)||(S.hDir<0&&S.hA>.4)),ph=S.t*7,s=Math.sin(ph);
+    let T;
+    if(lk)T=push?{r:[.14,-.2,-.1,.35,-.1],l:[-.14,-.2,-.1,.35,.1]}:{r:[.16,-.4,-.05,-.9,-.3],l:[-.16,-.4,-.05,-.9,.3]};
+    else if(mv)T={r:[.2,-.5+Math.max(0,-s)*.08,-.05+.12*s,-.6,-.1],l:[-.2,-.5+Math.max(0,s)*.08,-.05-.12*s,-.6,.1]};
+    else T={r:[.2,-.5,-.1,-.5,-.15],l:[-.2,-.5,-.1,-.5,.15]};
+    rx+=(T.r[0]-rx)*hw;ry+=(T.r[1]-ry)*hw;rz+=(T.r[2]-rz)*hw;rrx+=(T.r[3]-rrx)*hw;rry+=(T.r[4]-rry)*hw;
+    lx+=(T.l[0]-lx)*hw;ly+=(T.l[1]-ly)*hw;lz+=(T.l[2]-lz)*hw;lrx+=(T.l[3]-lrx)*hw;lry+=(T.l[4]-lry)*hw;
+  }
+  VM.R.position.set(rx,ry,rz);VM.R.rotation.set(rrx,rry,rrz);VM.L.position.set(lx,ly,lz);VM.L.rotation.set(lrx,lry,lrz);
+  VM.lens.material.color.setHex(S.flash&&!S.hid?0xfff4c8:0x2a2a2a);
+  VM.v.set(0,.005,-.78).applyEuler(VM.R.rotation).add(VM.R.position);beam.position.copy(VM.v);
+  const tr=-(JOY.x||0)*.018+Math.sin(b*.5)*.004*w;VM.roll+=(tr-VM.roll)*k8;
+}
+/* ---- bangunan 2-3 lantai terlihat dari luar ---- */
+function mkShell(group,wm,nf){
+  const cells=[];for(let x=FP.x0;x<=FP.x1;x++)for(let y=FP.y0;y<=FP.y1;y++)if(x===FP.x0||x===FP.x1||y===FP.y0||y===FP.y1)cells.push([x,y]);
+  const n=cells.length*(nf-1),d=new THREE.Object3D(),walls=new THREE.InstancedMesh(new THREE.BoxGeometry(CELL,WALLH,CELL),wm,n),band=new THREE.InstancedMesh(new THREE.BoxGeometry(CELL+.1,.18,CELL+.1),mat(0x16171a),n);
+  let i=0;
+  for(let k=1;k<nf;k++)for(const c of cells){d.position.set(cc(c[0]),WALLH*(k+.5),cc(c[1]));d.rotation.set(0,0,0);d.updateMatrix();walls.setMatrixAt(i,d.matrix);d.position.y=WALLH*k;d.updateMatrix();band.setMatrixAt(i,d.matrix);i++}
+  group.add(walls);group.add(band);
+  const dark=[],lit=[];
+  for(let k=1;k<nf;k++)for(const c of cells){
+    const x=c[0],y=c[1];if((x===FP.x0||x===FP.x1)&&(y===FP.y0||y===FP.y1))continue;if((x+y+k)%2)continue;
+    const o=y===FP.y0?[cc(x),FP.y0*CELL-.03,Math.PI]:y===FP.y1?[cc(x),(FP.y1+1)*CELL+.03,0]:x===FP.x0?[FP.x0*CELL-.03,cc(y),-Math.PI/2]:[(FP.x1+1)*CELL+.03,cc(y),Math.PI/2];
+    const e={x:o[0],y:WALLH*k+1.7,z:o[1],r:o[2]};if(y===FP.y0||y===FP.y1){}else{e.x=o[0];e.z=o[1]}
+    (Math.random()<.16?lit:dark).push(y===FP.y0||y===FP.y1?{x:cc(x),z:o[1],y:e.y,r:o[2]}:{x:o[0],z:cc(y),y:e.y,r:o[2]});
+  }
+  [[dark,0x070b12],[lit,0x80703a]].forEach(a=>{if(!a[0].length)return;const im=new THREE.InstancedMesh(new THREE.PlaneGeometry(1.7,1.3),new THREE.MeshBasicMaterial({color:a[1]}),a[0].length);
+    a[0].forEach((p,j)=>{d.position.set(p.x,p.y,p.z);d.rotation.set(0,p.r,0);d.updateMatrix();im.setMatrixAt(j,d.matrix)});group.add(im)});
+  const roof=new THREE.Mesh(new THREE.PlaneGeometry((FP.x1-FP.x0+1)*CELL,(FP.y1-FP.y0+1)*CELL),mat(0x15161a));roof.rotation.x=-Math.PI/2;roof.position.set((FP.x0+FP.x1+1)*CELL/2,WALLH*nf+.02,(FP.y0+FP.y1+1)*CELL/2);group.add(roof);
+}
+/* ---- chat ---- */
+const CHAT={log:[],seen:new Map(),seq:0,out:[],open:false,last:0};
+const cleanChat=t=>String(t||'').replace(/[\u0000-\u001f\u007f<>]/g,'').trim().slice(0,80);
+function chatRender(){
+  const box=$('chatLog'),now=Date.now();box.textContent='';
+  for(const m of CHAT.log.slice(-8)){if(!CHAT.open&&now-m.at>9000)continue;const d=document.createElement('div'),b=document.createElement('b');b.textContent=m.n+': ';b.style.color=m.own?'#8fd3a0':'#e0b080';d.appendChild(b);d.appendChild(document.createTextNode(m.t));box.appendChild(d)}
+}
+function chatAdd(n,t,own){CHAT.log.push({n,t,at:Date.now(),own});if(CHAT.log.length>40)CHAT.log.shift();chatRender();if(!own)blip(880)}
+function chatSend(txt){
+  txt=cleanChat(txt);if(!txt||!MP.room)return;const now=Date.now();if(now-CHAT.last<600)return;CHAT.last=now;
+  CHAT.seq++;CHAT.out.push(txt);if(CHAT.out.length>3)CHAT.out.shift();MP.room.presence({ch:[CHAT.seq].concat(CHAT.out)}).catch(()=>{});chatAdd(PROF.n,txt,true);
+}
+function chatPoll(){
+  if(!MP.room)return;
+  for(const p of MP.room.peers()){
+    if(p.sameTab||p.isMe||!p.presence)continue;
+    const c=p.presence.ch,ok=Array.isArray(c)&&Number.isInteger(c[0])&&c.length>1&&c.length<=4,prev=CHAT.seen.get(p.peer);
+    if(prev===undefined){CHAT.seen.set(p.peer,ok?c[0]:0);continue}
+    if(ok&&c[0]!==prev){const n=Math.max(1,Math.min(c.length-1,c[0]-prev));CHAT.seen.set(p.peer,c[0]);const nm=cleanNick(p.presence.n)||'Pemain';for(const t of c.slice(-n)){const s=cleanChat(t);if(s)chatAdd(nm,s,false)}}
+  }
+}
+function chatReset(){CHAT.log=[];CHAT.seen.clear();CHAT.seq=0;CHAT.out=[];CHAT.open=false;$('chatRow').style.display='none';chatRender()}
+(function(){
+  const q=['Tolong!','Dia di sini!','Ayo ke luar','Item ketemu','Sembunyi!'],qs=$('chatQuick');
+  q.forEach(t=>{const b=document.createElement('button');b.textContent=t;b.addEventListener('click',()=>chatSend(t));qs.appendChild(b)});
+  $('bChat').addEventListener('click',()=>{CHAT.open=!CHAT.open;$('chatRow').style.display=CHAT.open?'flex':'none';chatRender();if(CHAT.open)try{$('chatIn').focus()}catch(e){}});
+  const go=()=>{chatSend($('chatIn').value);$('chatIn').value=''};
+  $('chatSend').addEventListener('click',go);$('chatIn').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();go()}});
+  setInterval(()=>{const on=!!MP.room;$('bChat').style.display=on?'block':'none';$('chatBox').style.display=on?'flex':'none';if(!on&&CHAT.log.length)chatReset();else if(on)chatRender()},500);
+})();
+
+$('code').addEventListener('input',()=>{const v=$('code').value;if(v.length>6){const c=parseCode(v);if(c)$('code').value=c}});
 </script>
 
 </body></html>
