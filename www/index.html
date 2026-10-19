@@ -1186,7 +1186,19 @@ function specUpdate(dt){
     a.py=(a.py||0)+((+pr.py||0)-(a.py||0))*k;
     a.cy=a.cy==null?cyT:a.cy+(cyT-a.cy)*Math.min(1,dt*6);
   }
-  SPV={x,z,y:a?a.cy:cyT,yaw:a?a.mesh.rotation.y-Math.PI:(+pr.ry||0),pitch:a?a.py:0};
+  let ex=x,ez=z,ey=a?a.cy:cyT,yw=+pr.ry||0;
+  if(a){
+    /* arah pandang = arah teman melihat (bukan arah badan avatar saat masuk persembunyian) */
+    a.sy=a.sy==null?yw:lerpAngle(a.sy,yw,k);yw=a.sy;
+    const hs=a.hs;
+    if(hs&&a.ha>0){
+      /* ikut masuk ke loker/kolong meja: kamera di posisi mata teman, mengintip lewat celah pintu loker */
+      const q=a.ha,e=q*q*(3-2*q),lk=hs.kind==='locker';
+      ey=1.65+((lk?1.75:.55)-1.65)*e;a.cy=ey;
+      if(lk){ex+=Math.sin(hs.ry)*.1*e;ez+=Math.cos(hs.ry)*.1*e}
+    }
+  }
+  SPV={x:ex,z:ez,y:ey,yaw:yw,pitch:a?a.py:0};
   VX=x;VZ=z;S.flash=!!pr.f;flash.visible=S.flash;specHands(t,pr,a);
 }
 $('sPrev').addEventListener('click',()=>specStep(-1));
