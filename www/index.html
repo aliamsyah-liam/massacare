@@ -929,7 +929,7 @@ function updateMonster(dt,M){
 function die(by){
   if(S.dead)return;S.dead=true;S.deadT=0;S.hDir=0;S.killer=by||null;
   if(S.hid){S.x=S.px;S.z=S.pz;S.hid=null;$('hidden').style.display='none'}
-  flash.visible=S.flash;screech();thump(.8);monRoar(by||MON);toast('GO TO SLEEP...');
+  flash.visible=S.flash;screech();thump(.8);monRoar(by||MON);DF.start(by);
 }
 function showEnd(win){
   $('hud').style.display='none';$('hud').classList.remove('spec');$('end').style.display='flex';$('bSpec').style.display=(S.mode==='online'&&specCands().length)?'':'none';
@@ -951,7 +951,7 @@ function startGameInner(idx,mode,code){
   const map=MAPS[idx];S.map=map;S.mode=mode;S.code=code||'';
   S.seed=code?hashStr(code):((Math.random()*4e9)>>>0);
   buildAll(map,S.seed);vmBuild();
-  S.got=new Set();S.killer=null;S.dead=S.esc=false;S.hid=null;S.hDir=0;S.clb=null;S.f=0;S.stam=1;S.runLock=false;S.flash=true;S.t=0;S.deadT=0;
+  S.got=new Set();S.killer=null;DF.reset();S.dead=S.esc=false;S.hid=null;S.hDir=0;S.clb=null;S.f=0;S.stam=1;S.runLock=false;S.flash=true;S.t=0;S.deadT=0;
   S.spec=null;SPV=null;$('hud').classList.remove('spec');flash.visible=true;$('bLight').classList.add('on');$('hidden').style.display='none';$('danger').style.opacity=0;
   S.x=L.start.x;S.z=L.start.z;S.pitch=0;
   let bestLen=-1;
@@ -1013,10 +1013,11 @@ function loopBody(now){
   // kamera
   if(S.dead){
     S.deadT+=dt;
-    if(!S.spec){S.yaw=lerpAngle(S.yaw,Math.atan2(-((S.killer||M).x-S.x),-((S.killer||M).z-S.z)),Math.min(1,dt*8));S.pitch+=(.12-S.pitch)*Math.min(1,dt*6);$('danger').style.opacity=1}
-    if(S.deadT>1.6&&!S.spec&&$('end').style.display==='none')deadEnd();
+    if(!S.spec){S.yaw=lerpAngle(S.yaw,Math.atan2(-((S.killer||M).x-S.x),-((S.killer||M).z-S.z)),Math.min(1,dt*8));dfUpdate(dt);$('danger').style.opacity=DF.red}
+    if(S.deadT>DF.dur&&!S.spec&&$('end').style.display==='none')deadEnd();
   }
   camFrame(dt,1.65+Math.sin(S.bob)*.045,md);
+  if(S.dead&&!S.spec)dfCamera();
   sndFrame(dt,md);try{sawFrame(dt,md)}catch(e){window.__mcErr(e)}
   renderer.render(scene,camera);
 }
@@ -1033,7 +1034,7 @@ function loopBody(now){
   $('bSolo').addEventListener('click',()=>{if(MP.on)mpLeave();startGame(selMap,'solo','')});
   $('bHost').addEventListener('click',()=>{
     const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let c='';for(let i=0;i<5;i++)c+=A[Math.floor(Math.random()*A.length)];
-    try{navigator.clipboard.writeText(c+selMap)}catch(e){}startOnline(c+selMap,true);
+    try{navigator.clipboard.writeText(c+selMap).catch(()=>{})}catch(e){}startOnline(c+selMap,true);
   });
   $('bJoin').addEventListener('click',()=>{
     const c=parseCode($('code').value);
@@ -1058,11 +1059,12 @@ async function startOnline(code,create){
 function joinErrMsg(){
   const e=MP.err;
   if(!getServer()&&!window.claude)return'Server mabar belum dipasang di game ini. Pemilik game cukup mengisi config.js satu kali (window.MC_SERVER), lalu pemain tinggal memasukkan kode room. Main Offline tetap bisa dipakai.';
-  if(e==='noroom')return'Room tidak ditemukan. Pastikan kodenya benar dan temanmu masih berada di lobby (jangan menutup aplikasinya).';
+  if(e==='noroom')return'Room belum ditemukan setelah menunggu 30 detik. Cek kodenya (angka 0 bukan huruf O). Minta host kembali ke game Massacare dan tetap di lobby (jangan menutup aplikasi), lalu tekan Gabung lagi.';
   if(e==='full')return'Room sudah penuh (maksimal 8 pemain).';
   if(e==='timeout')return'Server belum merespons. Tunggu sebentar lalu coba lagi.';
-  return'Tidak bisa tersambung ke server mabar. Periksa koneksi internet lalu coba lagi.';
+  return'Tidak bisa tersambung ke server mabar ('+(e||'?')+'). Periksa koneksi internet lalu coba lagi.';
 }
+function showJoinWait(n){const m=$('mnote');if(m)m.textContent='Menunggu host… (percobaan '+n+'). Pastikan host masih di lobby game.'}
 function parseCode(raw){
   const up=String(raw||'').toUpperCase(),fix=t=>t.length===6?t.slice(0,5)+t[5].replace('O','0').replace(/[IL]/,'1'):t,ok=t=>/^[A-Z0-9]{5}[0-4]$/.test(t);
   for(const t of up.split(/[^A-Z0-9]+/)){const c=fix(t);if(ok(c))return c}
@@ -1168,6 +1170,7 @@ function specStop(){
   S.spec=null;SPV=null;$('hud').classList.remove('spec');showEnd(!!S.esc);
 }
 function deadEnd(){
+  DF.clearScreen();
   const c=S.mode==='online'?specCands():[];
   if(c.length)specStart(c[0].peer);else showEnd(false);
 }
@@ -1218,7 +1221,7 @@ function wsProvider(url){
     const st={peers:[],me:null,pres:{},open:false,left:false,assets:{},fc:null,ws:null,tries:0,first:true,k:false,rx:0};let done=false,rt=null,hb=null,chk=null;
     const send=o=>{if(st.ws&&st.ws.readyState===1)try{st.ws.send(JSON.stringify(o))}catch(e){}};
     const fail=m=>{if(done)return;done=true;clearTimeout(to);st.left=true;clearInterval(hb);try{st.ws&&st.ws.close()}catch(e){}rej(new Error(m))};
-    const to=setTimeout(()=>fail('timeout'),15000);
+    let to=setTimeout(()=>fail(st.nr?'noroom':'timeout'),create?15000:30000);
     const reset=()=>{const o=st.ws;st.ws=null;st.open=false;try{o&&o.close()}catch(e){}connect()};
     const wake=()=>{
       if(st.left||!done)return;
@@ -1252,7 +1255,7 @@ function wsProvider(url){
           if(Object.keys(st.pres).length)send({t:'p',d:st.pres});if(st.fc)send({t:'a',fc:st.fc});
           if(!done){done=true;clearTimeout(to);res(api)}else if(again){try{toast('Tersambung kembali')}catch(e){}}
         }else if(m.t==='k')st.k=true;
-        else if(m.t==='noroom')fail('noroom');
+        else if(m.t==='noroom'){st.nr=(st.nr||0)+1;try{if(typeof showJoinWait==='function')showJoinWait(st.nr)}catch(e){}}
         else if(m.t==='full')fail('full');
         else if(m.t==='state'&&Array.isArray(m.peers)){st.peers=m.peers;for(const p of st.peers){const f=st.assets[p.peer];if(f&&p.presence)p.presence.fc=f}}
         else if(m.t==='asset'&&typeof m.peer==='string'){if(typeof m.fc==='string'&&m.fc){st.assets[m.peer]=m.fc;for(const p of st.peers)if(p.peer===m.peer&&p.presence)p.presence.fc=m.fc}else delete st.assets[m.peer]}
@@ -1260,7 +1263,7 @@ function wsProvider(url){
       ws.onerror=()=>{};
       ws.onclose=()=>{
         if(st.ws!==ws)return;st.open=false;st.peers=[];
-        if(!done)fail('closed');
+        if(!done){if(st.nr&&!st.left){clearTimeout(rt);rt=setTimeout(connect,1500)}else fail('closed')}
         else if(!st.left){try{if(S.on)toast('Koneksi terputus, menyambung ulang…')}catch(e){}sched()}
       };
     }
@@ -1594,7 +1597,7 @@ function sawStop(){
 }
 function sawFrame(dt,md){
   if(!AC)return;const M=MON2;md=Math.hypot(M.x-VX,M.z-VZ);
-  const play=S.on&&M.kind===1&&M.mesh.visible&&md<48&&$('end').style.display==='none';
+  const play=S.on&&M.kind===1&&(M.mesh.visible||(DF.on&&DF.kind===1))&&md<48&&$('end').style.display==='none';
   if(!play){if(SAW.on){const t=AC.currentTime;SAW.mg.gain.setTargetAtTime(0,t,.15);SAW.ng.gain.setTargetAtTime(0,t,.15)}return}
   if(!SAW.on)sawStart();
   const ch=M.st==='chase',near=Math.max(0,(16-md)/16);
@@ -1618,6 +1621,170 @@ function bunBreath(o,f){const t=AC.currentTime,d=f?.3:.55;nz(o,t,d*1.4,'lowpass'
 function bunGrowl(o){monGrowl(o)}
 function bunLaugh(o){const t=AC.currentTime,l=lpf(o,500);for(let i=0;i<4;i++)tn(l,t+i*.22,.14,'sawtooth',170-i*10,130,.55,.01)}
 function bunSqueak(o){const t=AC.currentTime;tn(o,t,.12,'sine',1600,1000,.18,.005);tn(o,t+.15,.1,'sine',1300,800,.14,.005)}
+
+/* ===== v11: animasi tertangkap (Jeff menusuk, Bunny Man menggergaji) ===== */
+const DF={on:false,t:0,kind:0,dur:5.4,E:null,mesh:null,cache:[],red:0,flash:0,shake:0,hits:0,sw:-1,cutT:0,spurtT:0,splatT:0,flags:{},
+  cy:1.65,pit:0,roll:0,pit0:0,c:null,g:null,fl:null,bk:null,drips:[],parts:null,pool:null};
+const dfE=x=>x<0?0:x>1?1:x*x*(3-2*x);
+function dfEls(){
+  if(DF.c)return;
+  const mk=(z,css)=>{const d=document.createElement('div');d.style.cssText='position:fixed;top:0;right:0;bottom:0;left:0;pointer-events:none;display:none;z-index:'+z+';'+css;document.body.appendChild(d);return d};
+  DF.fl=mk(13,'background:radial-gradient(circle,rgba(190,0,0,.35),rgba(110,0,0,.8));opacity:0');
+  DF.bk=mk(15,'background:#000;opacity:0');
+  const c=document.createElement('canvas');c.style.cssText='position:fixed;top:0;right:0;bottom:0;left:0;width:100%;height:100%;pointer-events:none;display:none;z-index:14';document.body.appendChild(c);DF.c=c;DF.g=c.getContext('2d');
+  const geo=new THREE.BoxGeometry(.035,.035,.035),m=new THREE.MeshBasicMaterial({color:0x6a0505});
+  DF.parts=[];for(let i=0;i<70;i++){const p=new THREE.Mesh(geo,m);p.visible=false;p.userData.v={x:0,y:0,z:0};p.userData.on=false;scene.add(p);DF.parts.push(p)}
+  DF.pool=new THREE.Mesh(new THREE.CircleGeometry(1,24),new THREE.MeshBasicMaterial({color:0x4a0000,transparent:true,opacity:.92,depthWrite:false}));DF.pool.rotation.x=-Math.PI/2;DF.pool.visible=false;scene.add(DF.pool);
+}
+function dfSplat(x,y,r){
+  const g=DF.g,W=DF.c.width,H=DF.c.height,px=x*W,py=y*H,R=r*Math.min(W,H);
+  const gr=g.createRadialGradient(px,py,0,px,py,R);gr.addColorStop(0,'rgba(120,4,4,.93)');gr.addColorStop(.7,'rgba(85,0,0,.88)');gr.addColorStop(1,'rgba(60,0,0,0)');
+  g.fillStyle=gr;g.beginPath();g.arc(px,py,R,0,6.283);g.fill();
+  g.fillStyle='rgba(90,0,0,.88)';
+  for(let i=0;i<6;i++){const a=Math.random()*6.283,d=R*(.8+Math.random()*1.2);g.beginPath();g.arc(px+Math.cos(a)*d,py+Math.sin(a)*d,R*(.1+Math.random()*.25),0,6.283);g.fill()}
+  if(Math.random()<.75)DF.drips.push({x:px+(Math.random()-.5)*R,y:py,v:25+Math.random()*45,w:2+Math.random()*3,len:0,max:H*(.15+Math.random()*.35)});
+}
+function dfSpurt(n,spd){
+  const yw=S.yaw,fx=-Math.sin(yw),fz=-Math.cos(yw),rx=Math.cos(yw),rz=-Math.sin(yw),ox=camera.position.x+fx*.5,oy=camera.position.y-.1,oz=camera.position.z+fz*.5;
+  let k=0;
+  for(const p of DF.parts){
+    if(k>=n)break;if(p.userData.on)continue;k++;
+    const v=p.userData.v,f=(1.5+Math.random()*(spd||3)),s=(Math.random()-.5)*3;
+    v.x=fx*f+rx*s;v.z=fz*f+rz*s;v.y=.8+Math.random()*2.4;
+    p.position.set(ox,oy,oz);p.scale.set(1,1,1);p.visible=true;p.userData.on=true;
+  }
+}
+function dfParts(dt){
+  if(!DF.parts)return;
+  for(const p of DF.parts){
+    if(!p.userData.on)continue;const v=p.userData.v;
+    if(p.position.y>.02){v.y-=9*dt;p.position.x+=v.x*dt;p.position.y+=v.y*dt;p.position.z+=v.z*dt;if(p.position.y<=.02){p.position.y=.02;p.scale.y=.25;v.x=v.y=v.z=0}}
+  }
+}
+function dfHit(){
+  DF.flash=1;DF.shake=1;DF.red=Math.min(.95,DF.red+.07);
+  dfSplat(.5+(Math.random()-.5)*.5,.55+(Math.random()-.5)*.35,.07+Math.random()*.07);dfSplat(.5+(Math.random()-.5)*.7,.5+(Math.random()-.5)*.5,.04+Math.random()*.05);
+  dfSpurt(12,3);sfxStab();
+}
+/* ---- suara ---- */
+function sfxSwish(){if(!AC)return;nz(MG,AC.currentTime,.14,'bandpass',1200,2,.16,3200,.04)}
+function sfxStab(){if(!AC)return;const t=AC.currentTime;nz(MG,t,.1,'bandpass',2600,3,.35,1800,.002);tn(MG,t,.25,'sine',95,45,.6,.003);nz(MG,t,.2,'lowpass',900,.8,.5,300,.003);nz(MG,t+.05,.25,'bandpass',700,2,.25,400,.02)}
+function sfxCut(){if(!AC)return;const t=AC.currentTime;tn(MG,t,2.3,'sawtooth',95,150,.5,.05);tn(MG,t,2.3,'square',190,300,.22,.05);nz(MG,t,2.3,'bandpass',1300,1.2,.55,2600,.1);tn(MG,t+.2,2,'sawtooth',55,48,.3,.05);for(let i=0;i<16;i++)nz(MG,t+i*.14,.08,'bandpass',500,1,.45,200,.002)}
+function sfxFall(){if(!AC)return;const t=AC.currentTime;tn(MG,t,.35,'sine',75,30,.7,.003);nz(MG,t,.3,'lowpass',320,.8,.5,120,.003);nz(MG,t+.05,.5,'bandpass',700,.8,.18,300,.1);tn(MG,t+.2,3,'sine',4200,4100,.025,.8)}
+function speakGTS(){
+  /* Suara "Go to sleep" disintesis sendiri (bukan TTS bawaan HP yang suaranya cewek): geraman rendah, serak, berbisik, dengan formant vokal "o-u-i" */
+  if(!AC)return;
+  const t=AC.currentTime+.03,bus=AC.createGain();bus.gain.value=.42;
+  const ws=AC.createWaveShaper(),cv=new Float32Array(512);for(let i=0;i<512;i++){const x=i/256-1;cv[i]=Math.tanh(x*2.6)}ws.curve=cv;
+  const lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=3600;
+  const tr=AC.createGain();tr.gain.value=.45;
+  bus.connect(ws);ws.connect(lp);lp.connect(tr);tr.connect(MG);
+  if(REV){const r=AC.createGain();r.gain.value=.55;lp.connect(r);r.connect(REV)}
+  const rl=AC.createOscillator(),rg=AC.createGain();rl.frequency.value=17;rg.gain.value=.12;rl.connect(rg);rg.connect(tr.gain);rl.start(t);rl.stop(t+2.7);
+  /* sumber suara: gigi gergaji sangat rendah + jitter, plus embusan napas (noise) */
+  const src=AC.createOscillator();src.type='sawtooth';
+  [[0,96],[.5,86],[.8,80],[1.2,76],[1.7,70],[2.3,56]].forEach((p,i)=>i?src.frequency.linearRampToValueAtTime(p[1],t+p[0]):src.frequency.setValueAtTime(p[1],t));
+  const jl=AC.createOscillator(),jg=AC.createGain();jl.type='triangle';jl.frequency.value=27;jg.gain.value=7;jl.connect(jg);jg.connect(src.frequency);
+  const nb=AC.createBufferSource();nb.buffer=noiseBuf;nb.loop=true;
+  const vg=AC.createGain(),bg=AC.createGain();src.connect(vg);nb.connect(bg);
+  const env=(g,a)=>{g.gain.setValueAtTime(0,t);a.forEach(p=>g.gain.linearRampToValueAtTime(p[1],t+p[0]))};
+  /* bersuara (go, to, lee) dan napas/bisikan lebih kuat di sela-selanya */
+  env(vg,[[.03,0],[.1,.5],[.45,.55],[.58,.12],[.66,0],[.78,.45],[1.05,.5],[1.18,0],[1.5,0],[1.62,.5],[2.0,.45],[2.3,0],[2.7,0]]);
+  env(bg,[[.03,0],[.1,.7],[.5,.8],[.62,.3],[.7,.1],[.8,.7],[1.1,.7],[1.2,.1],[1.5,.2],[1.65,.8],[2.05,.8],[2.4,.1],[2.7,0]]);
+  const FM=[[0,350,1000,2300],[.1,470,800,2300],[.5,330,700,2250],[.78,310,820,2200],[1.1,290,880,2250],[1.3,300,1250,2450],[1.5,340,1000,2450],[1.7,270,2150,2900],[2.3,260,2050,2800]];
+  [[1,6.5,11],[2,5,9],[3,3.5,7]].forEach(([k,gn,q])=>{
+    const b=AC.createBiquadFilter();b.type='bandpass';b.Q.value=q;vg.connect(b);bg.connect(b);
+    b.frequency.setValueAtTime(FM[0][k]*.92,t);FM.forEach((p,i)=>{if(i)b.frequency.linearRampToValueAtTime(p[k]*.92,t+p[0])});
+    const g=AC.createGain();g.gain.value=gn;b.connect(g);g.connect(bus)});
+  src.start(t);jl.start(t);nb.start(t);src.stop(t+2.7);jl.stop(t+2.7);nb.stop(t+2.7);
+  /* konsonan: g, t, s (desis panjang), p */
+  nz(bus,t+.02,.07,'bandpass',500,1.2,.5,300,.004);
+  nz(bus,t+.72,.05,'bandpass',3600,1.2,.55,2800,.002);
+  nz(bus,t+1.2,.34,'bandpass',6200,1.6,.6,5200,.08);
+  nz(bus,t+2.28,.06,'bandpass',1800,1.2,.5,1200,.003);
+  tn(MG,t,2.2,'sine',48,40,.14,.2);
+}
+/* ---- alur animasi ---- */
+DF.start=function(by){
+  dfEls();
+  let E=by||null;if(!E){let bd=1e9;for(const e of ENTS){const d=Math.hypot(e.x-S.x,e.z-S.z);if(d<bd){bd=d;E=e}}}
+  const k=E.kind|0;
+  if(DF.mesh&&DF.mesh.parent)scene.remove(DF.mesh);
+  if(!DF.cache[k]){DF.cache[k]=k===1?makeBunny():makeMonster()}
+  DF.mesh=DF.cache[k];scene.add(DF.mesh);
+  Object.assign(DF,{on:true,t:0,E,kind:k,dur:k===1?5.2:5.4,hits:0,sw:-1,cutT:0,spurtT:0,splatT:0,flags:{},red:.25,flash:0,shake:0,roll:0,cy:1.65,pit0:S.pitch||0,pit:S.pitch||0,drips:[]});
+  E.grace=99;E.spd=0;
+  DF.c.width=Math.max(160,Math.round(innerWidth/2));DF.c.height=Math.max(90,Math.round(innerHeight/2));DF.g.clearRect(0,0,DF.c.width,DF.c.height);
+  DF.c.style.display='block';DF.fl.style.display='block';DF.bk.style.display='block';DF.fl.style.opacity=0;DF.bk.style.opacity=0;
+  DF.parts.forEach(p=>{p.visible=false;p.userData.on=false});DF.pool.visible=false;
+};
+DF.clearScreen=function(){
+  if(!DF.c)return;
+  DF.on=false;DF.c.style.display='none';DF.fl.style.display='none';DF.bk.style.display='none';DF.g.clearRect(0,0,DF.c.width,DF.c.height);
+  if(DF.mesh&&DF.mesh.parent)scene.remove(DF.mesh);
+  if(DF.E){DF.E.grace=3}
+  DF.parts.forEach(p=>{p.visible=false;p.userData.on=false});DF.pool.visible=false;
+};
+DF.reset=function(){DF.clearScreen();DF.red=0;DF.dur=5.4;DF.E=null};
+function dfUpdate(dt){
+  if(!DF.on)return;
+  DF.t+=dt;const t=DF.t,k=DF.kind,yw=S.yaw,fx=-Math.sin(yw),fz=-Math.cos(yw),m=DF.mesh,u=m.userData,F=DF.flags;
+  let d=1.0;const Ts=3.0,Tf=k===1?3.5:3.9;
+  if(DF.E)DF.E.mesh.visible=false;
+  if(k===0){
+    const T0=.45,P=.42,N=6;let ang=-1.9,lean=0;
+    d=2.2-1.2*dfE(t/T0);
+    if(t<T0)ang=-1.9-.8*dfE(t/T0);
+    else if(t<T0+N*P){
+      const i=Math.floor((t-T0)/P),s=(t-T0-i*P)/P;
+      if(s<.5)ang=-1.9-.8*dfE(s/.5);else if(s<.72)ang=-2.7+1.35*dfE((s-.5)/.22);else ang=-1.35-.55*dfE((s-.72)/.28);
+      lean=(s>=.5&&s<.85)?.35*Math.sin((s-.5)/.35*Math.PI):0;
+      if(s>.25&&s<.5&&DF.sw!==i){DF.sw=i;sfxSwish()}
+      if(s>=.72&&DF.hits<=i){DF.hits=i+1;dfHit()}
+    }else ang=-1.35;
+    if(t>=T0+N*P){d=1.0-.3*dfE((t-3.0)/.5);if(!F.sp){F.sp=1;speakGTS()}}
+    if(t>4.5)d=.7+2.7*dfE((t-4.5)/.9);
+    u.aR.rotation.x=ang;u.aL.rotation.x=-1.25;u.aL.rotation.z=-.2;u.torso.rotation.x=lean;u.head.rotation.x=.15+lean*.5+(t>3?.25:0);
+    m.rotation.y=yw+(t>4.4?Math.PI*dfE((t-4.4)/.4):0);
+  }else{
+    let th=-1.2;
+    d=t<.6?2.4-1.2*dfE(t/.6):t<1.2?1.2-.55*dfE((t-.6)/.6):.65;
+    if(t<.6)th=-1.2-1.2*dfE(t/.6);else if(t<1.2)th=-2.4+1.8*dfE((t-.6)/.6);else if(t<3.2)th=-.6;else th=-.6-1.6*dfE((t-3.2)/.8);
+    if(t>=.85&&t<3.2){
+      if(!F.cut){F.cut=1;sfxCut()}
+      SAW.rpm=1;SAW.bt=.7;SAW.burst=1;
+      th+=(Math.random()-.5)*.07;DF.shake=Math.max(DF.shake,.55);
+      DF.spurtT-=dt;if(DF.spurtT<=0){DF.spurtT=.08;dfSpurt(9,4)}
+      DF.splatT-=dt;if(DF.splatT<=0){DF.splatT=.13;dfSplat(.5+(Math.random()-.5)*.8,.45+(Math.random()-.5)*.6,.06+Math.random()*.1)}
+      DF.flash=.55+.3*Math.sin(t*40);DF.red=Math.min(.95,.3+(t-.85)*.28);
+    }
+    if(t>=2.3&&!F.lg){F.lg=1;bunLaugh(MG)}
+    if(t>4.2){d=.65+2.4*dfE((t-4.2)/.9);if(!F.rv){F.rv=1;SAW.rev=0;SAW.burst=1}}
+    u.aL.rotation.x=th;u.aR.rotation.x=th;u.saw.position.set(.1+(Math.random()-.5)*.02,1.46-.8*Math.cos(th),-.8*Math.sin(th));u.saw.rotation.x=th+1.2;
+    for(const o of u.teeth){const p=(o.i*.055+t*7)%.74;o.m.position.z=o.sy>0?.22+p:.95-p}
+    u.head.rotation.x=.3;u.torso.rotation.x=.12;
+    m.rotation.y=yw;
+  }
+  m.position.set(camera.position.x+fx*d,0,camera.position.z+fz*d);
+  const sink=dfE((t-Ts)/(Tf-Ts)),fall=dfE((t-Tf)/.6);
+  DF.cy=1.65-.45*sink-.98*fall*fall;DF.roll=1.35*fall;
+  DF.pit=DF.pit0*(1-dfE(t/.5))+(k===0?-.12:-.3)*dfE(t/.6)+(-.2)*fall;
+  if(t>=Tf+.5&&!F.th){F.th=1;sfxFall()}
+  if(t>=Tf-.2){DF.pool.visible=true;const r=.2+1.5*dfE((t-Tf+.2)/(DF.dur-Tf));DF.pool.scale.set(r,r,r);DF.pool.position.set(camera.position.x-fx*.1,.015,camera.position.z-fz*.1)}
+  if(t>=Tf)DF.red=Math.min(.97,DF.red+dt*.4);
+  DF.flash=Math.max(0,DF.flash-dt*(k===1?0:4));DF.shake=Math.max(0,DF.shake-dt*6);
+  DF.fl.style.opacity=(DF.flash*.8).toFixed(2);
+  DF.bk.style.opacity=dfE((t-(DF.dur-.7))/.6).toFixed(2);
+  const g=DF.g;g.fillStyle='rgba(85,0,0,.9)';
+  for(let i=DF.drips.length-1;i>=0;i--){const q=DF.drips[i],st=q.v*dt;g.fillRect(q.x,q.y+q.len,q.w,st+1);q.len+=st;if(q.len>q.max)DF.drips.splice(i,1)}
+  dfParts(dt);
+}
+function dfCamera(){
+  if(!DF.on)return;
+  const sh=DF.shake*.05,r=()=>(Math.random()-.5)*2;
+  camera.position.y=DF.cy+r()*sh*.6;camera.position.x+=r()*sh;camera.position.z+=r()*sh;
+  camera.rotation.x=DF.pit+r()*sh*.5;camera.rotation.z=DF.roll+r()*sh*.6;
+}
 
 </script>
 
