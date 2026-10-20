@@ -327,7 +327,7 @@ function buildLevel(map,seed){
   const W=GW*CELL,H=GH*CELL;
   // lantai & langit-langit
   const ft=mkTex(map.floor,seed+1,'floor');ft.repeat.set(GW/2,GH/2);
-  const fl=new THREE.Mesh(new THREE.PlaneGeometry(W,H),mat(0xffffff,{map:ft}));fl.rotation.x=-Math.PI/2;fl.position.set(W/2,0,H/2);group.add(fl);
+  const fl=new THREE.Mesh(new THREE.PlaneGeometry(W,H),mat(0xffffff,{map:ft}));fl.rotation.x=-Math.PI/2;fl.position.set(W/2,0,H/2);fl.userData.isFloor=true;group.add(fl);
   const ct=mkTex(map.ceil,seed+2,'floor');ct.repeat.set(GW/3,GH/3);
   const ce=new THREE.Mesh(new THREE.PlaneGeometry((FP.x1-FP.x0+1)*CELL,(FP.y1-FP.y0+1)*CELL),mat(0xffffff,{map:ct}));ce.rotation.x=Math.PI/2;ce.position.set((FP.x0+FP.x1+1)*CELL/2,WALLH,(FP.y0+FP.y1+1)*CELL/2);group.add(ce);
   // dinding (instanced, hanya yang menghadap lantai)
@@ -595,8 +595,7 @@ function doHide(){
 }
 function camFrame(dt,cy,md){
   let cx=S.x,cz=S.z;
-  if(S.clb){const c=S.clb;c.t+=dt;if(!c.done){const e=Math.min(1,c.t),q=e*e*(3-2*e);cx=c.sx+(c.st.x-c.sx)*q;cz=c.sz+(c.st.z-c.sz)*q;cy=1.65+c.st.dir*1.3*q;if(c.t>=1.1){c.done=true;doFloor(c);cx=S.x;cz=S.z;cy=1.65}}
-    $('fade').style.opacity=c.t<.8?0:c.t<1.1?(c.t-.8)/.3:c.t<1.4?1:Math.max(0,1-(c.t-1.4)/.5);if(c.t>1.9){S.clb=null;$('fade').style.opacity=0}}
+  if(S.clb){S.clb.t+=dt;const r=stairCam(S.clb,dt);if(r){if(r.use){cx=r.x;cz=r.z;cy=r.y}$('fade').style.opacity=r.fade}}else CLBP=0;
   if(S.hid){
     const h=S.hid,lk=h.kind==='locker';
     S.hA=Math.max(0,Math.min(1,S.hA+S.hDir*dt/.8));
@@ -606,7 +605,7 @@ function camFrame(dt,cy,md){
     S.pitch=Math.max(-.5,Math.min(.5,S.pitch));
     if(S.hDir<0&&S.hA<=0){S.x=S.px;S.z=S.pz;S.hid=null;S.hDir=0;$('hidden').style.display='none';flash.visible=S.flash}
   }
-  let cyaw=S.yaw,cpit=S.pitch;
+  let cyaw=S.yaw,cpit=S.pitch+(S.clb?CLBP:0);
   if(S.spec&&SPV){cx=SPV.x;cz=SPV.z;cy=SPV.y;cyaw=SPV.yaw;cpit=SPV.pitch}else if(S.dead)cy=1.2;
   camera.position.set(cx,cy,cz);camera.rotation.set(cpit,cyaw,(S.spec||S.dead)?0:VM.roll);
   vmFrame(dt);
@@ -676,11 +675,68 @@ function mkYard(k,g){
   else{B(g,1.1,1.1,1.1,0x6a5030,0,.55,0);B(g,.8,.8,.8,0x5a4428,1.1,.4,.2);g.userData.slots=[[0,1.12,0]]}
 }
 /* ---- tangga antar lantai ---- */
+/* ---- tangga antar lantai (v12): cukup berjalan ke tangga, ada pegangan dan pagar ---- */
+const STC=[0x6a6f6c,0x6a5a3a,0x4a4540,0x5a3a2a,0x4a3322],RLC=[0x2d3133,0x3b2616,0x2b2b2d,0x3a2414,0x2e1c10];
+/* arah tangga: sel masuk harus kosong; lebih bagus kalau ujung tangga menempel dinding */
+function stairDirFor(P){
+  const D=[[1,0],[-1,0],[0,1],[0,-1]];let best=null,bs=-1;
+  for(const d of D){
+    if(gv(P[0]-d[0],P[1]-d[1])!==0)continue;
+    const bk=gv(P[0]+d[0],P[1]+d[1]),s1=gv(P[0]-d[1],P[1]+d[0]),s2=gv(P[0]+d[1],P[1]-d[0]);
+    const sc=1+(bk===1?4:0)+(s1===1?1:0)+(s2===1?1:0);
+    if(sc>bs){bs=sc;best=d}
+  }
+  return best||[1,0];
+}
+/* lantai dengan lubang persegi untuk tangga turun (UV disamakan dengan lantai biasa) */
+function floorWithHole(W,H,cx,cz,hs){
+  const sh=new THREE.Shape();sh.moveTo(0,0);sh.lineTo(W,0);sh.lineTo(W,-H);sh.lineTo(0,-H);sh.lineTo(0,0);
+  const ho=new THREE.Path();
+  ho.moveTo(cx-hs,-(cz-hs));ho.lineTo(cx-hs,-(cz+hs));ho.lineTo(cx+hs,-(cz+hs));ho.lineTo(cx+hs,-(cz-hs));ho.lineTo(cx-hs,-(cz-hs));
+  sh.holes.push(ho);
+  const g=new THREE.ShapeGeometry(sh),p=g.attributes.position,uv=g.attributes.uv;
+  for(let i=0;i<p.count;i++)uv.setXY(i,p.getX(i)/W,1+p.getY(i)/H);
+  uv.needsUpdate=true;return g;
+}
 function mkStair(group,P,up,k,id){
-  const g=new THREE.Group();g.position.set(cc(P[0]),0,cc(P[1]));const c=[0x6a6f6c,0x6a5a3a,0x4a4540,0x5a3a2a,0x4a3322][id];
-  if(up){for(let i=0;i<10;i++)B(g,.3,.34*(i+1),2.6,c,-1.35+i*.3+.15,.17*(i+1),0);B(g,1.5,.02,2.6,0,.75,3.38,0,basic(0x020202))}
-  else{B(g,2.9,.02,2.9,0,0,.03,0,basic(0x030303));for(let i=0;i<4;i++)B(g,.3,.015,2.4,0,-1.2+i*.3,.045,0,basic([0x2a2a2a,0x1d1d1d,0x131313,0x0a0a0a][i]));for(const z of[-1.4,1.4])B(g,2.9,.9,.06,0x1a1a1a,0,.45,z);B(g,.06,.9,2.9,0x1a1a1a,1.4,.45,0)}
-  group.add(g);L.stairs.push({x:cc(P[0]),z:cc(P[1]),dir:up?1:-1,to:up?FLEV+1:FLEV-1,k});
+  const d=stairDirFor(P),sx=cc(P[0]),sz=cc(P[1]),col=STC[id]||STC[0],rc=RLC[id]||RLC[0];
+  const g=new THREE.Group();g.position.set(sx,0,sz);g.rotation.y=Math.atan2(-d[1],d[0]);
+  const rm=mat(rc);
+  const bar=(x0,y0,x1,y1,z,t)=>{const o=B(g,Math.hypot(x1-x0,y1-y0),t,t,0,(x0+x1)/2,(y0+y1)/2,z,rm);o.rotation.z=Math.atan2(y1-y0,x1-x0);return o};
+  if(up){
+    /* anak tangga naik searah +x (lokal), 10 anak tangga, ujung atas gelap */
+    for(let i=0;i<10;i++)B(g,.3,.34*(i+1),2.6,col,-1.35+i*.3+.15,.17*(i+1),0);
+    B(g,1.5,.02,2.6,0,.75,3.38,0,basic(0x020202));
+    /* pegangan tangga di kedua sisi: handrail miring, palang tengah, tiang kecil, tiang awal */
+    const m=1.1333,yR=x=>.34+(x+1.35)*m+.83;
+    for(const z of[-1.22,1.22]){
+      bar(-1.4,yR(-1.4),.53,yR(.53),z,.07);
+      bar(-1.4,yR(-1.4)-.45,.53,yR(.53)-.45,z,.04);
+      for(let i=0;i<6;i++){const x=-1.35+i*.3+.15,y0=.34*(i+1),y1=yR(x);B(g,.035,y1-y0,.035,0,x,(y0+y1)/2,z,rm)}
+      B(g,.12,yR(-1.3)+.1,.12,0,-1.3,(yR(-1.3)+.1)/2,z,rm);B(g,.17,.1,.17,0,-1.3,yR(-1.3)+.15,z,rm);
+    }
+  }else{
+    /* lubang tangga turun: anak tangga menurun ke kegelapan, dinding lubang, dan pagar di tiga sisi */
+    const hs=1.45,dep=3.4,sw=2*hs/9;
+    const dk=n=>{const f=Math.max(.22,1-n*.09);return(((col>>16&255)*f|0)<<16)|(((col>>8&255)*f|0)<<8)|((col&255)*f|0)};
+    for(let i=0;i<9;i++){const top=-.34*(i+1),h=dep+top;B(g,sw,h,2*hs,dk(i),-hs+(i+.5)*sw,top-h/2,0)}
+    B(g,2*hs,.02,2*hs,0,0,-dep,0,basic(0x040404));
+    const wc=0x16120f;
+    B(g,2*hs,dep,.04,wc,0,-dep/2,-hs);B(g,2*hs,dep,.04,wc,0,-dep/2,hs);B(g,.04,dep,2*hs,wc,hs,-dep/2,0);
+    const H1=1.0,H2=.5,e=1.4;
+    const post=(x,z)=>{B(g,.09,H1+.08,.09,0,x,(H1+.08)/2,z,rm);B(g,.13,.06,.13,0,x,H1+.1,z,rm)};
+    for(const a of[-e,0,e]){post(a,-e);post(a,e)}post(e,0);
+    for(const z of[-e,e]){
+      B(g,2*e,.06,.06,0,0,H1,z,rm);B(g,2*e,.04,.04,0,0,H2,z,rm);
+      for(let i=0;i<7;i++)B(g,.03,H1-.05,.03,0,-1.1+i*.367,(H1-.05)/2,z,rm);
+    }
+    B(g,.06,.06,2*e,0,e,H1,0,rm);B(g,.04,.04,2*e,0,e,H2,0,rm);
+    for(let i=0;i<7;i++)B(g,.03,H1-.05,.03,0,e,(H1-.05)/2,-1.1+i*.367,rm);
+    const fm=group.children.find(o=>o.userData&&o.userData.isFloor);
+    if(fm){fm.geometry.dispose();fm.geometry=floorWithHole(GW*CELL,GH*CELL,sx,sz,hs);fm.rotation.x=-Math.PI/2;fm.position.set(0,0,0)}
+  }
+  group.add(g);
+  L.stairs.push({x:sx,z:sz,dx:d[0],dz:d[1],dir:up?1:-1,to:up?FLEV+1:FLEV-1,k});
 }
 function extras(map,group,R,plan,wm,WN){
   const sky=new THREE.MeshBasicMaterial({map:skyTex(),fog:false}),glass=new THREE.MeshBasicMaterial({color:0xaac4d8,transparent:true,opacity:.1,side:THREE.DoubleSide,depthWrite:false});
@@ -735,23 +791,62 @@ function lampFX(cx,cz){
   lampL.forEach((p,i)=>{const e=ls[i];if(e){p.position.set(e[1].x,e[1].y,e[1].z);p.intensity=1.4}else p.intensity=0});
 }
 function nearestCont(r){let b=null,bd=r;for(const c of L.conts){const d=Math.hypot(c.x-S.x,c.z-S.z);if(d<bd){bd=d;b=c}}return b}
+/* ===== v12: naik/turun tangga otomatis saat berjalan ke tangga ===== */
+let CLBP=0,STHINT=false;
+const ST_A=.4,ST_N=5,ST_STEP=.4;      /* fase menyejajarkan, jumlah anak tangga yang dilewati, detik per anak tangga */
+function startClimb(st){S.clb={t:0,st,sx:S.x,sz:S.z,done:false,fk:-1,snd:false};blip(300)}
+function stairCheck(dt){
+  if(S.stCool>0)S.stCool-=dt;
+  if(!S.on||S.dead||S.esc||S.hid||S.clb||S.spec||!L||!L.stairs||!L.stairs.length)return;
+  const mx=S.mdx||0,mz=S.mdz||0,ml=Math.hypot(mx,mz);
+  for(const st of L.stairs){
+    if(st.dx===undefined)continue;
+    const rx=S.x-st.x,rz=S.z-st.z,lx=rx*st.dx+rz*st.dz,lz=-rx*st.dz+rz*st.dx;
+    if(!STHINT&&lx>-6&&lx<-1&&Math.abs(lz)<3){STHINT=true;toast(st.dir>0?'Jalan ke tangga untuk naik':'Jalan ke lubang tangga untuk turun')}
+    if(S.stCool>0)continue;
+    if(lx>-2.75&&lx<-1.2&&Math.abs(lz)<1.4&&ml>.002&&(mx*st.dx+mz*st.dz)/ml>.4){startClimb(st);return}
+  }
+}
+/* kamera saat di tangga: sejajarkan, naik/turun per anak tangga, pudar, pindah lantai, terang lagi */
+function stairCam(c,dt){
+  if(S.dead||S.esc){S.clb=null;CLBP=0;$('fade').style.opacity=0;return null}
+  const st=c.st,dx=st.dx,dz=st.dz,up=st.dir>0,TB=ST_N*ST_STEP,TS=ST_A+TB,TE=TS+.2+.55;
+  if(c.t<TS){
+    S.yaw=lerpAngle(S.yaw,Math.atan2(-dx,-dz),Math.min(1,dt*7));
+    let x,z,h=0;
+    if(c.t<ST_A){const a=c.t/ST_A,q=a*a*(3-2*a);x=c.sx+(st.x-dx*1.55-c.sx)*q;z=c.sz+(st.z-dz*1.55-c.sz)*q}
+    else{
+      const u=(c.t-ST_A)/TB,lx=-1.55+u*1.7,k=Math.max(0,(lx+1.35)/.3),fk=Math.floor(k),fr=k-fk,sm=fr*fr*(3-2*fr);
+      x=st.x+dx*lx;z=st.z+dz*lx;h=.34*(fk+sm)*(up?1:-1);
+      if(fk!==c.fk){if(c.fk>=0||fk>0)c.snd=true;c.fk=fk}
+    }
+    const e=Math.min(1,c.t/.8);CLBP=(up?.16:-.2)*e*e*(3-2*e);
+    return{use:true,x,z,y:1.65+h+Math.sin(c.t*9)*.012,fade:Math.max(0,Math.min(1,(c.t-(TS-.5))/.5))};
+  }
+  if(!c.done){c.done=true;doFloor(c);S.stCool=1.2}
+  CLBP=0;
+  const t2=c.t-TS;
+  if(c.t>TE){S.clb=null;return{use:false,fade:0}}
+  return{use:false,fade:t2<.2?1:Math.max(0,1-(t2-.2)/.55)};
+}
+
 function nearestStair(r){let b=null,bd=r;for(const c of L.stairs){const d=Math.hypot(c.x-S.x,c.z-S.z);if(d<bd){bd=d;b=c}}return b}
 function doTake(){
   if(!S.on||S.dead||S.esc||S.clb)return;
   if(S.hid){toast('Keluar dulu dari persembunyian');return}
   const it=nearestItem(3.2);if(it){collect(it.id);return}
   const c=nearestCont(3.1);if(c){c.open=!c.open;sfxCont(c.k,c.open,c.x,c.z);vmReach();ctSend(c);toast(c.open?'Dibuka':'Ditutup');return}
-  const st=nearestStair(3.2);if(st){S.clb={t:0,st,sx:S.x,sz:S.z,done:false};blip(300);return}
   toast('Tidak ada yang bisa diambil');
 }
 function setFloor(f){FL.forEach((o,i)=>{o.L.group.visible=i===f});FC=f;S.f=f;grid=FL[f].grid;L=FL[f].L}
 function doFloor(c){
   setFloor(c.st.to);const a=L.stairs.find(s=>s.k===c.st.k);
-  if(a){const x0=cellOf(a.x),z0=cellOf(a.z);for(const d of[[0,1],[0,-1],[1,0],[-1,0]])if(gv(x0+d[0],z0+d[1])===0){S.x=cc(x0+d[0]);S.z=cc(z0+d[1]);S.yaw=Math.atan2(-d[0],-d[1]);break}}
+  if(a&&a.dx!==undefined){S.x=a.x-a.dx*2.95;S.z=a.z-a.dz*2.95;S.yaw=Math.atan2(a.dx,a.dz)}
+  else if(a){const x0=cellOf(a.x),z0=cellOf(a.z);for(const d of[[0,1],[0,-1],[1,0],[-1,0]])if(gv(x0+d[0],z0+d[1])===0){S.x=cc(x0+d[0]);S.z=cc(z0+d[1]);S.yaw=Math.atan2(-d[0],-d[1]);break}}
   S.pitch=0;
   const rs=L.map.rooms.slice().sort((p,q)=>Math.hypot(cc(q[0]+q[2]/2)-S.x,cc(q[1]+q[3]/2)-S.z)-Math.hypot(cc(p[0]+p[2]/2)-S.x,cc(p[1]+p[3]/2)-S.z));
   ENTS.forEach((E,i)=>{
-    if(E.st==='chase'&&a){E.x=a.x;E.z=a.z;E.grace=3.5+i*2}
+    if(E.st==='chase'&&a){if(a.dx!==undefined){E.x=a.x-a.dx*3.9-a.dz*1.0;E.z=a.z-a.dz*3.9+a.dx*1.0}else{E.x=a.x;E.z=a.z}E.grace=3.5+i*2}
     else{const fc=randFloorIn(rs[Math.min(i,rs.length-1)]);E.x=cc(fc[0]);E.z=cc(fc[1]);E.grace=5+i*4}
     Object.assign(E,{st:'patrol',tx:null,step:null,last:null,wait:2,lost:0,searchT:0,fh:true});
   });updateObj();
@@ -845,6 +940,7 @@ function mateHud(act,dt){
 
 /* ===== Gerak pemain ===== */
 function movePlayer(dt){
+  S.mdx=0;S.mdz=0;
   if(S.hid||S.dead||S.esc||S.clb)return;
   let f=-JOY.y+((K.KeyW||K.ArrowUp)?1:0)-((K.KeyS||K.ArrowDown)?1:0),s=JOY.x+((K.KeyD||K.ArrowRight)?1:0)-((K.KeyA||K.ArrowLeft)?1:0);
   const mag=Math.hypot(f,s),len=Math.min(1,mag);
@@ -853,7 +949,7 @@ function movePlayer(dt){
   const spd=(wantRun?5.0:3.0)*len;
   const sy=Math.sin(S.yaw),cy=Math.cos(S.yaw);
   const nf=mag?f/mag:0,ns=mag?s/mag:0;
-  const dx=(-sy*nf+cy*ns)*spd*dt,dz=(-cy*nf-sy*ns)*spd*dt;
+  const dx=(-sy*nf+cy*ns)*spd*dt,dz=(-cy*nf-sy*ns)*spd*dt;S.mdx=dx;S.mdz=dz;
   if(!blocked(S.x+dx,S.z,.38))S.x+=dx;
   if(!blocked(S.x,S.z+dz,.38))S.z+=dz;
   if(wantRun)S.stam=Math.max(0,S.stam-dt*.26);else S.stam=Math.min(1,S.stam+dt*(len>0?.12:.22));
@@ -951,7 +1047,7 @@ function startGameInner(idx,mode,code){
   const map=MAPS[idx];S.map=map;S.mode=mode;S.code=code||'';
   S.seed=code?hashStr(code):((Math.random()*4e9)>>>0);
   witReset();buildAll(map,S.seed);vmBuild();
-  S.got=new Set();S.killer=null;DF.reset();S.dead=S.esc=false;S.hid=null;S.hDir=0;S.clb=null;S.f=0;S.stam=1;S.runLock=false;S.flash=true;S.t=0;S.deadT=0;
+  S.got=new Set();S.killer=null;DF.reset();S.dead=S.esc=false;S.hid=null;S.hDir=0;S.clb=null;STHINT=false;S.stCool=0;S.mdx=S.mdz=0;CLBP=0;$('fade').style.opacity=0;S.f=0;S.stam=1;S.runLock=false;S.flash=true;S.t=0;S.deadT=0;
   S.spec=null;SPV=null;$('hud').classList.remove('spec');flash.visible=true;$('bLight').classList.add('on');$('hidden').style.display='none';$('danger').style.opacity=0;
   S.x=L.start.x;S.z=L.start.z;S.pitch=0;
   let bestLen=-1;
@@ -974,9 +1070,10 @@ function loopBody(now){
   if(!S.on)return;
   S.t+=dt;
   if(!S.dead&&!S.esc)movePlayer(dt);
+  try{stairCheck(dt)}catch(e){window.__mcErr(e)}
   // item
   for(const it of L.items){if(it.got)continue;it.mesh.rotation.y+=dt*.5;it.mesh.position.y=(it.y||1)+Math.sin(S.t*2+it.id)*.015}
-  $('bTake').classList.toggle('on',!S.hid&&!S.dead&&!S.clb&&(!!nearestItem(3.2)||!!nearestCont(3.1)||!!nearestStair(3.2)));
+  $('bTake').classList.toggle('on',!S.hid&&!S.dead&&!S.clb&&(!!nearestItem(3.2)||!!nearestCont(3.1)));
   $('bHide').classList.toggle('on',!!S.hid||(!S.dead&&!!nearestHide(2.6)));
   // monster
   const online=S.mode==='online';
@@ -1386,7 +1483,7 @@ function sndFrame(dt,md){
   sndListener();
   if(S.t<.3){SND.k=Math.floor(S.bob/Math.PI);SND.mx=null;SND.t.crow=3+Math.random()*5;SND.t.wolf=10+Math.random()*12}
   if(!S.dead&&!S.esc&&!S.hid&&!S.clb&&!S.spec){const k=Math.floor(S.bob/Math.PI);if(k!==SND.k){SND.k=k;stepSnd(surf(S.x,S.z),MG,S.running?.5:.32,false)}}
-  if(S.clb&&!S.clb.done){SND.cs+=dt;if(SND.cs>.105){SND.cs=0;stepSnd('wood',MG,.45,false)}}else SND.cs=0;
+  if(S.clb&&S.clb.snd){S.clb.snd=false;stepSnd('wood',MG,.5,false)}
   if(S.mode==='online')MP.av.forEach(a=>{const m=a.mesh;if(!m.visible){a.lx=null;return}if(a.lx==null){a.lx=m.position.x;a.lz=m.position.z;a.sd=0;return}
     const d=Math.hypot(m.position.x-a.lx,m.position.z-a.lz);a.lx=m.position.x;a.lz=m.position.z;if(d>3)return;a.sd+=d;const run=d/Math.max(dt,.001)>4;
     if(a.sd>(run?1.9:1.55)){a.sd=0;stepSnd(surf(m.position.x,m.position.z),spat(m.position.x,m.position.z,.2),run?.55:.38,false)}});
