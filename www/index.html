@@ -233,7 +233,9 @@ const cellOf=v=>Math.floor(v/CELL);
 const cc=c=>(c+.5)*CELL;
 function blocked(x,z,r){
   const x0=cellOf(x-r),x1=cellOf(x+r),z0=cellOf(z-r),z1=cellOf(z+r);
-  for(let cy=z0;cy<=z1;cy++)for(let cx=x0;cx<=x1;cx++)if(solid(cx,cy))return true;
+  for(let cy=z0;cy<=z1;cy++)for(let cx=x0;cx<=x1;cx++)if(solid(cx,cy)){
+    if(grid[cy*GW+cx]===2&&L&&L.cb){const bx=L.cb[cy*GW+cx];if(bx){let h=false;for(const b of bx)if(x+r>b[0]&&x-r<b[2]&&z+r>b[1]&&z-r<b[3]){h=true;break}if(h)return true;continue}}
+    return true}
   return false;
 }
 /* BFS dari sel a ke sel b; mengembalikan sel berikutnya, atau null */
@@ -776,10 +778,12 @@ const mt9=c=>{let m=MTC.get(c);if(!m){m=mat(c);MTC.set(c,m)}return m};
 function pb9(g){
   const px=g.position.x,pz=g.position.z,th=g.rotation.y,cs=Math.cos(th),sn=Math.sin(th);
   const W=(x,z)=>[px+x*cs+z*sn,pz-x*sn+z*cs];
+  const cbx=[];g.userData.cb=cbx;
+  const cb=(hx,hz,p,y0,y1)=>{if(y1>.3&&y0<1.7&&(hx>.05||hz>.05)&&(hx+hz)>.09)cbx.push([p[0]-hx,p[1]-hz,p[0]+hx,p[1]+hz])};
   const P={g,
-    b(w,h,d,c,x,y,z,ry){const p=W(x,z);bt9.add(BT.box,c,[p[0],y,p[1],w,h,d,0,th+(ry||0),0]);return P},
+    b(w,h,d,c,x,y,z,ry){const p=W(x,z),a=th+(ry||0),ca=Math.abs(Math.cos(a)),sa=Math.abs(Math.sin(a));bt9.add(BT.box,c,[p[0],y,p[1],w,h,d,0,a,0]);cb((w*ca+d*sa)/2,(w*sa+d*ca)/2,p,y-h/2,y+h/2);return P},
     e(w,h,d,c,x,y,z,ry){const p=W(x,z);bt9.add(BT.ebox,c,[p[0],y,p[1],w,h,d,0,th+(ry||0),0]);return P},
-    c(r,h,c,x,y,z,ax){const p=W(x,z);let rx=0,rz=0;if(ax==='x')rz=Math.PI/2;else if(ax==='z')rx=Math.PI/2;bt9.add(BT.cyl,c,[p[0],y,p[1],r,h,r,rx,th,rz]);return P},
+    c(r,h,c,x,y,z,ax){const p=W(x,z);let rx=0,rz=0,ca=Math.abs(Math.cos(th)),sa=Math.abs(Math.sin(th)),hx=r,hz=r,y0=y-h/2,y1=y+h/2;if(ax==='x'){rz=Math.PI/2;hx=(h*ca+2*r*sa)/2;hz=(h*sa+2*r*ca)/2;y0=y-r;y1=y+r}else if(ax==='z'){rx=Math.PI/2;hx=(h*sa+2*r*ca)/2;hz=(h*ca+2*r*sa)/2;y0=y-r;y1=y+r}bt9.add(BT.cyl,c,[p[0],y,p[1],r,h,r,rx,th,rz]);cb(hx,hz,p,y0,y1);return P},
     m(x,y,z){const q=new THREE.Group();q.position.set(x,y,z);g.add(q);return q},
     mb(q,w,h,d,c,x,y,z){return B(q,w,h,d,0,x,y,z,mt9(c))},
     pl(w,h,tex,x,y,z,ry,col){const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),tex?new THREE.MeshLambertMaterial({map:tex,color:col||0xffffff}):mat(col||0xffffff));m.position.set(x,y,z);m.rotation.y=ry||0;g.add(m);return m},
@@ -1395,6 +1399,18 @@ function mkWinSch(w,group,wm,sky,glass){
   group.add(g);
 }
 
+/* tabrakan pemain: kotak per bagian barang, bukan satu sel penuh (agar celah sempit bisa dilewati) */
+function legacyCb9(g){
+  const out=[];if(typeof THREE.Box3!=='function')return out;
+  g.updateMatrixWorld(true);
+  g.traverse(m=>{if(!m.isMesh||!m.geometry)return;const b=new THREE.Box3().setFromObject(m);
+    if(b.max.y>.3&&b.min.y<1.7&&(b.max.x-b.min.x)>.1&&(b.max.z-b.min.z)>.1)out.push([b.min.x,b.min.z,b.max.x,b.max.z])});
+  return out}
+function cbAdd9(pos,bx){
+  const cx=cellOf(pos.x),cy=cellOf(pos.z),x0=cx*CELL,z0=cy*CELL,x1=x0+CELL,z1=z0+CELL,a=[];
+  bx.forEach(b=>{const q=[Math.max(b[0],x0),Math.max(b[1],z0),Math.min(b[2],x1),Math.min(b[3],z1)];if(q[2]>q[0]&&q[3]>q[1])a.push(q)});
+  (L.cb||(L.cb={}))[cy*GW+cx]=a}
+
 
 function extras(map,group,R,plan,wm,WN){
   const sky=new THREE.MeshBasicMaterial({map:skyTex(),fog:false}),glass=new THREE.MeshBasicMaterial({color:0xaac4d8,transparent:true,opacity:.1,side:THREE.DoubleSide,depthWrite:false});
@@ -1407,10 +1423,11 @@ function extras(map,group,R,plan,wm,WN){
   const ST=STAIR[map.id],nf=FLOORS[map.id]||1,ab=nf-(BASE9[map.id]?1:0),BS=BSTAIR[map.id];
   if(BS){const bf=nf-1;if(FLEV===0||FLEV===bf){const P=BS;if(gv(P[0],P[1])===0){mkStair(group,P,FLEV===bf,7,map.id,FLEV===bf?0:bf);grid[P[1]*GW+P[0]]=2;nb(P,2)}}}
   if(ST&&ab>1)for(let k=0;k<ab-1;k++){const P=[ST[0]+3*k,ST[1]];if(FLEV!==k&&FLEV!==k+1)continue;if(gv(P[0],P[1])!==0)continue;mkStair(group,P,FLEV===k,k,map.id);grid[P[1]*GW+P[0]]=2;nb(P,2)}
-  const slots=[],reg=(g,out)=>{g.updateMatrixWorld(true);const ud=g.userData,cs=ud.conts||(ud.cont?[ud.cont]:[]);
+  const slots=[],reg=(g,out)=>{g.updateMatrixWorld(true);const ud=g.userData;cbAdd9(g.position,ud.cb||legacyCb9(g));const cs=ud.conts||(ud.cont?[ud.cont]:[]);
     cs.forEach(c=>{const w=c.hp?g.localToWorld(new THREE.Vector3(c.hp[0],c.hp[1],c.hp[2])):new THREE.Vector3(g.position.x,1.1,g.position.z);c.x=w.x;c.y=w.y;c.z=w.z;L.conts.push(c)});
     (ud.slots||[]).forEach(s=>{const w=g.localToWorld(new THREE.Vector3(s[0],s[1],s[2]));let ct=null;if(ud.conts)ct=s[3]!=null?ud.conts[s[3]]:null;else if(ud.cont)ct=ud.cont;slots.push({x:w.x,y:w.y,z:w.z,cont:ct,out})})};
   const pl=PL[map.id],pr=map.id===2?.2:.5;
+  L.hides.forEach(h=>{cbAdd9(h,[h.kind==='locker'?[h.x-.62,h.z-.62,h.x+.62,h.z+.62]:(Math.abs(Math.sin(h.ry||0))>.5?[h.x-.8,h.z-1.1,h.x+.8,h.z+1.1]:[h.x-1.1,h.z-.8,h.x+1.1,h.z+.8])])});
   bt9.start();
   if(!furnish9(map,group,R,tk,reg))map.rooms.forEach(r=>{
     for(let y=r[1];y<r[1]+r[3];y++)for(let x=r[0];x<r[0]+r[2];x++){
