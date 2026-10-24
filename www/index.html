@@ -475,7 +475,7 @@ function buildLevel(map,seed){
   const ft=mkTex(map.floor,seed+1,'floor');ft.repeat.set(GW/2,GH/2);
   const fw=FLEV?(FP.x1-FP.x0+1)*CELL:W,fh=FLEV?(FP.y1-FP.y0+1)*CELL:H;if(FLEV)ft.repeat.set(fw/CELL/2,fh/CELL/2);const fl=new THREE.Mesh(new THREE.PlaneGeometry(fw,fh),mat(0xffffff,{map:ft}));fl.rotation.x=-Math.PI/2;fl.position.set(FLEV?(FP.x0+FP.x1+1)*CELL/2:W/2,0,FLEV?(FP.y0+FP.y1+1)*CELL/2:H/2);fl.userData.isFloor=true;group.add(fl);
   const ct=mkTex(map.ceil,seed+2,'floor');ct.repeat.set(GW/3,GH/3);
-  const ce=new THREE.Mesh(new THREE.PlaneGeometry((FP.x1-FP.x0+1)*CELL,(FP.y1-FP.y0+1)*CELL),mat(0xffffff,{map:ct}));ce.rotation.x=Math.PI/2;ce.position.set((FP.x0+FP.x1+1)*CELL/2,WALLH,(FP.y0+FP.y1+1)*CELL/2);group.add(ce);
+  const ce=new THREE.Mesh(new THREE.PlaneGeometry((FP.x1-FP.x0+1)*CELL,(FP.y1-FP.y0+1)*CELL),mat(0xffffff,{map:ct}));ce.rotation.x=Math.PI/2;ce.position.set((FP.x0+FP.x1+1)*CELL/2,WALLH,(FP.y0+FP.y1+1)*CELL/2);ce.userData.isCeil=true;group.add(ce);
   // dinding (instanced, hanya yang menghadap lantai)
   const wt=mkTex(map.wall,seed+3,'wall');wt.repeat.set(1,1);
   const WN=pickWindows(R);const cells=[];
@@ -748,6 +748,8 @@ function doHide(){
 function camFrame(dt,cy,md){
   let cx=S.x,cz=S.z;
   if(S.clb){S.clb.t+=dt;const r=stairCam(S.clb,dt);if(r){if(r.use){cx=r.x;cz=r.z;cy=r.y}$('fade').style.opacity=r.fade}}else CLBP=0;
+  {const tg=S.stw?stairRelH(S.stw.st,S.stw.phi):0;S.sh=(S.sh||0)+(tg-(S.sh||0))*Math.min(1,dt*12);
+   if(!S.hid&&!S.spec&&!S.dead)cy+=S.sh}
   if(S.hid){
     const h=S.hid,lk=h.kind==='locker';
     S.hA=Math.max(0,Math.min(1,S.hA+S.hDir*dt/.8));
@@ -857,46 +859,87 @@ function floorWithHole(W,H,cx,cz,hs){
   for(let i=0;i<p.count;i++)uv.setXY(i,p.getX(i)/W,1+p.getY(i)/H);
   uv.needsUpdate=true;return g;
 }
+/* ===== v20: tangga melingkar (spiral) tanpa animasi: jalan biasa, lantai atas/bawah tampak menyambung ===== */
+const STQ=[];
+const wrapPi=a=>{a%=Math.PI*2;if(a>Math.PI)a-=Math.PI*2;if(a<-Math.PI)a+=Math.PI*2;return a};
+const wrap2=a=>{a%=Math.PI*2;return a<0?a+Math.PI*2:a};
 function mkStair(group,P,up,k,id,to){
-  const d=stairDirFor(P),sx=cc(P[0]),sz=cc(P[1]),col=STC[id]||STC[0],rc=RLC[id]||RLC[0];
-  const g=new THREE.Group();g.position.set(sx,0,sz);g.rotation.y=Math.atan2(-d[1],d[0]);
-  const rm=mat(rc);
-  const bar=(x0,y0,x1,y1,z,t)=>{const o=B(g,Math.hypot(x1-x0,y1-y0),t,t,0,(x0+x1)/2,(y0+y1)/2,z,rm);o.rotation.z=Math.atan2(y1-y0,x1-x0);return o};
-  if(up){
-    /* anak tangga naik searah +x (lokal), 10 anak tangga, ujung atas gelap */
-    for(let i=0;i<10;i++)B(g,.3,.34*(i+1),2.6,col,-1.35+i*.3+.15,.17*(i+1),0);
-    B(g,1.5,.02,2.6,0,.75,3.38,0,basic(0x020202));
-    /* pegangan tangga di kedua sisi: handrail miring, palang tengah, tiang kecil, tiang awal */
-    const m=1.1333,yR=x=>.34+(x+1.35)*m+.83;
-    for(const z of[-1.22,1.22]){
-      bar(-1.4,yR(-1.4),.53,yR(.53),z,.07);
-      bar(-1.4,yR(-1.4)-.45,.53,yR(.53)-.45,z,.04);
-      for(let i=0;i<6;i++){const x=-1.35+i*.3+.15,y0=.34*(i+1),y1=yR(x);B(g,.035,y1-y0,.035,0,x,(y0+y1)/2,z,rm)}
-      B(g,.12,yR(-1.3)+.1,.12,0,-1.3,(yR(-1.3)+.1)/2,z,rm);B(g,.17,.1,.17,0,-1.3,yR(-1.3)+.15,z,rm);
-    }
-  }else{
-    /* lubang tangga turun: anak tangga menurun ke kegelapan, dinding lubang, dan pagar di tiga sisi */
-    const hs=1.45,dep=3.4,sw=2*hs/9;
-    const dk=n=>{const f=Math.max(.22,1-n*.09);return(((col>>16&255)*f|0)<<16)|(((col>>8&255)*f|0)<<8)|((col&255)*f|0)};
-    for(let i=0;i<9;i++){const top=-.34*(i+1),h=dep+top;B(g,sw,h,2*hs,dk(i),-hs+(i+.5)*sw,top-h/2,0)}
-    B(g,2*hs,.02,2*hs,0,0,-dep,0,basic(0x040404));
-    const wc=0x16120f;
-    B(g,2*hs,dep,.04,wc,0,-dep/2,-hs);B(g,2*hs,dep,.04,wc,0,-dep/2,hs);B(g,.04,dep,2*hs,wc,hs,-dep/2,0);
-    const H1=1.0,H2=.5,e=1.4;
-    const post=(x,z)=>{B(g,.09,H1+.08,.09,0,x,(H1+.08)/2,z,rm);B(g,.13,.06,.13,0,x,H1+.1,z,rm)};
-    for(const a of[-e,0,e]){post(a,-e);post(a,e)}post(e,0);
-    for(const z of[-e,e]){
-      B(g,2*e,.06,.06,0,0,H1,z,rm);B(g,2*e,.04,.04,0,0,H2,z,rm);
-      for(let i=0;i<7;i++)B(g,.03,H1-.05,.03,0,-1.1+i*.367,(H1-.05)/2,z,rm);
-    }
-    B(g,.06,.06,2*e,0,e,H1,0,rm);B(g,.04,.04,2*e,0,e,H2,0,rm);
-    for(let i=0;i<7;i++)B(g,.03,H1-.05,.03,0,e,(H1-.05)/2,-1.1+i*.367,rm);
-    const fm=group.children.find(o=>o.userData&&o.userData.isFloor);
-    if(fm){fm.geometry.dispose();fm.geometry=floorWithHole(GW*CELL,GH*CELL,sx,sz,hs);fm.rotation.x=-Math.PI/2;fm.position.set(0,0,0)}
-  }
-  group.add(g);
-  L.stairs.push({x:sx,z:sz,dx:d[0],dz:d[1],dir:up?1:-1,to:to!=null?to:(up?FLEV+1:FLEV-1),k});
+  const d=stairDirFor(P),sx=cc(P[0]),sz=cc(P[1]);
+  const st={x:sx,z:sz,dx:d[0],dz:d[1],dir:up?1:-1,to:to!=null?to:(up?FLEV+1:FLEV-1),k,grp:group,id,sp:null};
+  L.stairs.push(st);STQ.push(st);
 }
+function seg3(g,p,q,t,m){
+  const d=new THREE.Vector3(q[0]-p[0],q[1]-p[1],q[2]-p[2]),len=d.length();if(len<1e-4)return;
+  const o=new THREE.Mesh(new THREE.BoxGeometry(len,t,t),m);o.position.set((p[0]+q[0])/2,(p[1]+q[1])/2,(p[2]+q[2])/2);
+  o.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0),d.normalize());g.add(o);return o;
+}
+function holeGeo(x0,z0,w,h,cx,cz,R,ceil){
+  const sh=new THREE.Shape(),Y=z=>ceil?z:-z;
+  sh.moveTo(x0,Y(z0));sh.lineTo(x0+w,Y(z0));sh.lineTo(x0+w,Y(z0+h));sh.lineTo(x0,Y(z0+h));sh.lineTo(x0,Y(z0));
+  const ho=new THREE.Path();
+  for(let i=0;i<=32;i++){const a=i/32*Math.PI*2,x=cx+R*Math.cos(a),y=Y(cz+R*Math.sin(a));i?ho.lineTo(x,y):ho.moveTo(x,y)}
+  sh.holes.push(ho);
+  const g=new THREE.ShapeGeometry(sh),p=g.attributes.position,uv=g.attributes.uv;
+  for(let i=0;i<p.count;i++){const x=p.getX(i),z=ceil?p.getY(i):-p.getY(i);uv.setXY(i,(x-x0)/w,ceil?(z-z0)/h:1-(z-z0)/h)}
+  uv.needsUpdate=true;return g;
+}
+function spHoleMesh(m,sp,ceil){
+  if(!m||!m.geometry||!m.geometry.parameters)return;
+  const gp=m.geometry.parameters,w=gp.width,h=gp.height,x0=m.position.x-w/2,z0=m.position.z-h/2;
+  m.geometry.dispose();m.geometry=holeGeo(x0,z0,w,h,sp.cx,sp.cz,1.5,ceil);
+  m.position.x=0;m.position.z=0;
+  if(!ceil&&m.material&&m.material.map)m.material.map.repeat.set(w/CELL/2,h/CELL/2);
+}
+function spiralBuild(g,sp,id){
+  const col=STC[id]||STC[0],rc=RLC[id]||RLC[0],rm=mat(rc),rIn=.1,rOut=1.5,sg=4;
+  const post=new THREE.Mesh(new THREE.CylinderGeometry(rIn,rIn,WALLH,14),mat(rc));post.position.set(sp.cx,WALLH/2,sp.cz);g.add(post);
+  const cA=mat(col),cB=mat((((col>>16&255)*.86|0)<<16)|(((col>>8&255)*.86|0)<<8)|((col&255)*.86|0));
+  const rp=[];
+  for(let i=0;i<sp.N;i++){
+    const a0=sp.th1+sp.s*i*sp.dphi,a1=sp.th1+sp.s*(i+1)*sp.dphi,top=sp.rise*(i+1),sh=new THREE.Shape(),pt=[];
+    for(let j=0;j<=sg;j++){const a=a0+(a1-a0)*j/sg;pt.push([rOut*Math.cos(a),-rOut*Math.sin(a)])}
+    for(let j=sg;j>=0;j--){const a=a0+(a1-a0)*j/sg;pt.push([rIn*Math.cos(a),-rIn*Math.sin(a)])}
+    sh.moveTo(pt[0][0],pt[0][1]);for(let j=1;j<pt.length;j++)sh.lineTo(pt[j][0],pt[j][1]);
+    const geo=new THREE.ExtrudeGeometry(sh,{depth:top,bevelEnabled:false,steps:1});geo.rotateX(-Math.PI/2);
+    const m=new THREE.Mesh(geo,i%2?cB:cA);m.position.set(sp.cx,0,sp.cz);g.add(m);
+    const am=(a0+a1)/2,mid=(i+.5)*sp.dphi;
+    if(mid>.75&&mid<sp.Phi-.75)rp.push([sp.cx+1.47*Math.cos(am),top,sp.cz+1.47*Math.sin(am),i]);
+  }
+  for(const p of rp)B(g,.05,1.0,.05,0,p[0],p[1]+.5,p[2],rm);
+  for(let j=0;j<rp.length-1;j++){const p=rp[j],q=rp[j+1];if(q[3]!==p[3]+1)continue;
+    seg3(g,[p[0],p[1]+1,p[2]],[q[0],q[1]+1,q[2]],.07,rm);seg3(g,[p[0],p[1]+.5,p[2]],[q[0],q[1]+.5,q[2]],.04,rm)}
+}
+function holeRails(g,sp,id){
+  const rm=mat(RLC[id]||RLC[0]),R=1.53,pts=[];
+  for(let i=0;i<24;i++){const a=i/24*Math.PI*2;if(Math.abs(wrapPi(a-sp.th2))<.7)continue;pts.push([sp.cx+R*Math.cos(a),sp.cz+R*Math.sin(a),i])}
+  for(const p of pts){B(g,.07,1.0,.07,0,p[0],.5,p[1],rm);B(g,.1,.05,.1,0,p[0],1.02,p[1],rm)}
+  for(let j=0;j<pts.length;j++){const p=pts[j],q=pts[(j+1)%pts.length];if((p[2]+1)%24!==q[2])continue;
+    seg3(g,[p[0],1,p[1]],[q[0],1,q[1]],.06,rm);seg3(g,[p[0],.5,p[1]],[q[0],.5,q[1]],.04,rm)}
+}
+function buildSpirals(){
+  const by=new Map();
+  for(const st of STQ){let e=by.get(st.k);if(!e){e={};by.set(st.k,e)}if(st.dir>0)e.up=st;else e.dn=st}
+  for(const e of by.values()){
+    const u=e.up,dn=e.dn;if(!u||!dn){window.__STUN=(window.__STUN|0)+1;continue}
+    const th1=Math.atan2(-u.dz,-u.dx),th2=Math.atan2(-dn.dz,-dn.dx),d1=wrap2(th2-th1),d2=wrap2(th1-th2),s=d1<=d2?1:-1,Dl=Math.min(d1,d2),Phi=Math.PI*2+Dl;
+    const N=Math.max(10,Math.round(Phi/(32*Math.PI/180))),sp={cx:u.x,cz:u.z,th1,th2,s,Phi,N,dphi:Phi/N,rise:WALLH/N};
+    u.sp=sp;dn.sp=sp;
+    spiralBuild(u.grp,sp,u.id);
+    spHoleMesh(u.grp.children.find(o=>o.userData&&o.userData.isCeil),sp,true);
+    spHoleMesh(dn.grp.children.find(o=>o.userData&&o.userData.isFloor),sp,false);
+    holeRails(dn.grp,sp,dn.id);
+  }
+}
+/* lantai tetangga ikut tampak (naik/turun menyambung) saat dekat tangga */
+function floorView(){
+  if(!FL.length||!L||!L.stairs)return;
+  FL.forEach((o,i)=>{o.L.group.visible=i===S.f;o.L.group.position.y=0});
+  let b=null,bd=30;for(const st of L.stairs){if(!st.sp)continue;const d=Math.hypot(st.x-S.x,st.z-S.z);if(d<bd){bd=d;b=st}}
+  if(b&&FL[b.to]){const o=FL[b.to];o.L.group.visible=true;o.L.group.position.y=b.dir*WALLH}
+  if(typeof EXTG!=='undefined'&&EXTG)EXTG.children.forEach(o=>{if(o.userData&&o.userData.slab!==undefined)o.visible=(S.f===0&&!(b&&b.dir>0))});
+}
+function stairRelH(st,phi){const sp=st.sp,h=phi<0?0:sp.rise*Math.min(sp.N,Math.floor(phi/sp.dphi)+1);return st.dir>0?h:h-WALLH}
+
 /* ===== v14 ===== */
 /* ===== v9: isi peta — ruang bertema, laci/nampan yang bisa ditarik, basement, tanda ruangan, foto, bendera ===== */
 const TEXC=new Map();
@@ -1619,14 +1662,29 @@ const ST_A=.4,ST_N=5,ST_STEP=.4;      /* fase menyejajarkan, jumlah anak tangga 
 function startClimb(st){S.clb={t:0,st,sx:S.x,sz:S.z,done:false,fk:-1,snd:false};blip(300)}
 function stairCheck(dt){
   if(S.stCool>0)S.stCool-=dt;
+  const w=S.stw;
+  if(w){
+    const st=w.st;
+    if(!S.on||S.dead||S.esc||S.hid||S.spec||!L||!L.stairs.includes(st)){S.stw=null}
+    else if(Math.hypot(S.x-st.x,S.z-st.z)>2.15){
+      const top=w.phi>st.sp.Phi/2;S.stw=null;
+      if((st.dir>0&&top)||(st.dir<0&&!top)){doFloor({st,keep:true});S.sh-=st.dir*WALLH;S.stCool=1.2}else S.stCool=.5;
+    }
+    try{floorView()}catch(e){window.__mcErr&&window.__mcErr(e)}
+    return;
+  }
+  try{floorView()}catch(e){window.__mcErr&&window.__mcErr(e)}
   if(!S.on||S.dead||S.esc||S.hid||S.clb||S.spec||!L||!L.stairs||!L.stairs.length)return;
   const mx=S.mdx||0,mz=S.mdz||0,ml=Math.hypot(mx,mz);
   for(const st of L.stairs){
-    if(st.dx===undefined)continue;
-    const rx=S.x-st.x,rz=S.z-st.z,lx=rx*st.dx+rz*st.dz,lz=-rx*st.dz+rz*st.dx;
-    if(!STHINT&&lx>-6&&lx<-1&&Math.abs(lz)<3){STHINT=true;toast(st.dir>0?'Jalan ke tangga untuk naik':'Jalan ke lubang tangga untuk turun')}
+    const sp=st.sp;if(!sp)continue;
+    const rx=S.x-st.x,rz=S.z-st.z,th=st.dir>0?sp.th1:sp.th2,ct=Math.cos(th),sn=Math.sin(th),al=rx*ct+rz*sn,pp=-rx*sn+rz*ct;
+    if(!STHINT&&al>1.5&&al<6&&Math.abs(pp)<3){STHINT=true;toast(st.dir>0?'Jalan ke tangga untuk naik':'Jalan ke lubang tangga untuk turun')}
     if(S.stCool>0)continue;
-    if(lx>-2.75&&lx<-1.2&&Math.abs(lz)<1.4&&ml>.002&&(mx*st.dx+mz*st.dz)/ml>.4){startClimb(st);return}
+    if(al>1.7&&al<2.15&&Math.abs(pp)<1.0&&ml>.002&&-(mx*ct+mz*sn)/ml>.5){
+      const a=Math.atan2(rz,rx),ph=st.dir>0?sp.s*wrapPi(a-sp.th1):sp.Phi+sp.s*wrapPi(a-sp.th2);
+      S.stw={st,phi:ph,th:a};blip(300);return;
+    }
   }
 }
 /* kamera saat di tangga: sejajarkan, naik/turun per anak tangga, pudar, pindah lantai, terang lagi */
@@ -1662,13 +1720,13 @@ function doTake(){
   const c=nearestCont(3.1);if(c){c.open=!c.open;sfxCont(c.k,c.open,c.x,c.z);vmReach();ctSend(c);try{q19Noise(c.x,c.z,9)}catch(e){}toast(c.open?'Dibuka':'Ditutup');return}
   toast('Tidak ada yang bisa diambil');
 }
-function setFloor(f){FL.forEach((o,i)=>{o.L.group.visible=i===f});FC=f;S.f=f;grid=FL[f].grid;L=FL[f].L;try{fxFloor(f)}catch(e){}
+function setFloor(f){FL.forEach((o,i)=>{o.L.group.visible=i===f});FC=f;S.f=f;grid=FL[f].grid;L=FL[f].L;FL.forEach(o=>{o.L.group.position.y=0});try{fxFloor(f)}catch(e){}
   const m=L.map;if(m&&m.fog&&scene.background&&scene.fog){scene.background.set(m.fog);scene.fog.color.set(m.fog);scene.fog.density=m.dens;amb.color.setHex(m.amb);amb.intensity=m.ambI}}
 function doFloor(c){
   setFloor(c.st.to);const a=L.stairs.find(s=>s.k===c.st.k);
-  if(a&&a.dx!==undefined){S.x=a.x-a.dx*2.95;S.z=a.z-a.dz*2.95;S.yaw=Math.atan2(a.dx,a.dz)}
+  if(c.keep){}else if(a&&a.dx!==undefined){S.x=a.x-a.dx*2.95;S.z=a.z-a.dz*2.95;S.yaw=Math.atan2(a.dx,a.dz)}
   else if(a){const x0=cellOf(a.x),z0=cellOf(a.z);for(const d of[[0,1],[0,-1],[1,0],[-1,0]])if(gv(x0+d[0],z0+d[1])===0){S.x=cc(x0+d[0]);S.z=cc(z0+d[1]);S.yaw=Math.atan2(-d[0],-d[1]);break}}
-  S.pitch=0;
+  if(!c.keep)S.pitch=0;
   const rs=L.map.rooms.slice().sort((p,q)=>Math.hypot(cc(q[0]+q[2]/2)-S.x,cc(q[1]+q[3]/2)-S.z)-Math.hypot(cc(p[0]+p[2]/2)-S.x,cc(p[1]+p[3]/2)-S.z));
   ENTS.forEach((E,i)=>{
     if(E.st==='chase'&&a){if(a.dx!==undefined){E.x=a.x-a.dx*3.9-a.dz*1.0;E.z=a.z-a.dz*3.9+a.dx*1.0}else{E.x=a.x;E.z=a.z}E.grace=3.5+i*2}
@@ -1677,9 +1735,10 @@ function doFloor(c){
   });updateObj();
 }
 function buildAll(map,seed){
-  FL.forEach(f=>{scene.remove(f.L.group);disposeGroup(f.L.group)});if(EXTG){scene.remove(EXTG);disposeGroup(EXTG);EXTG=null}FL=[];L=null;TEXC.clear();
+  STQ.length=0;FL.forEach(f=>{scene.remove(f.L.group);disposeGroup(f.L.group)});if(EXTG){scene.remove(EXTG);disposeGroup(EXTG);EXTG=null}FL=[];L=null;TEXC.clear();
   const nf=FLOORS[map.id]||1;
   for(let f=0;f<nf;f++){FLEV=f;FIDS=[...Array(map.mission.n).keys()].filter(i=>i%nf===f);buildLevel((BASE9[map.id]&&f===nf-1)?BASEMAPS9[map.id]:map,seed+f*977);FL.push({grid,L});L.exit.eg.visible=false}
+  try{buildSpirals()}catch(e){window.__mcErr&&window.__mcErr(e)}
   FLEV=0;setFloor(0);return L;
 }
 
@@ -1767,6 +1826,7 @@ function mateHud(act,dt){
 /* ===== Gerak pemain ===== */
 function movePlayer(dt){
   S.mdx=0;S.mdz=0;
+  if(S.dead||S.esc)S.stw=null;
   if(S.hid||S.dead||S.esc||S.clb)return;
   let f=-JOY.y+((K.KeyW||K.ArrowUp)?1:0)-((K.KeyS||K.ArrowDown)?1:0),s=JOY.x+((K.KeyD||K.ArrowRight)?1:0)-((K.KeyA||K.ArrowLeft)?1:0);
   const mag=Math.hypot(f,s),len=Math.min(1,mag);
@@ -1776,8 +1836,28 @@ function movePlayer(dt){
   const sy=Math.sin(S.yaw),cy=Math.cos(S.yaw);
   const nf=mag?f/mag:0,ns=mag?s/mag:0;
   const dx=(-sy*nf+cy*ns)*spd*dt,dz=(-cy*nf-sy*ns)*spd*dt;S.mdx=dx;S.mdz=dz;
+  if(S.stw){
+    const w=S.stw,st=w.st,sp=st.sp;
+    const tryM=(nx,nz)=>{
+      const rx=nx-st.x,rz=nz-st.z,r=Math.hypot(rx,rz);if(r<.25)return false;
+      const th=Math.atan2(rz,rx),phi=w.phi+sp.s*wrapPi(th-w.th);
+      if(phi<-.5||phi>sp.Phi+.5)return false;
+      if(r>1.43){
+        let ok=false;
+        for(const q of[[sp.th1,-.6,.5],[sp.th2,sp.Phi-.5,sp.Phi+.6]]){
+          if(phi<q[1]||phi>q[2])continue;
+          const al=rx*Math.cos(q[0])+rz*Math.sin(q[0]),pp=-rx*Math.sin(q[0])+rz*Math.cos(q[0]);
+          if(al>0&&Math.abs(pp)<.9&&al<2.6){ok=true;break}
+        }
+        if(!ok)return false;
+      }
+      S.x=nx;S.z=nz;w.phi=phi;w.th=th;return true;
+    };
+    if(!tryM(S.x+dx,S.z+dz)){if(!tryM(S.x+dx,S.z))tryM(S.x,S.z+dz)}
+  }else{
   if(!blocked(S.x+dx,S.z,.38))S.x+=dx;
   if(!blocked(S.x,S.z+dz,.38))S.z+=dz;
+  }
   if(wantRun)S.stam=Math.max(0,S.stam-dt*.26);else S.stam=Math.min(1,S.stam+dt*(len>0?.12:.22));
   if(S.stam<=0)S.runLock=true;if(S.runLock&&S.stam>.3)S.runLock=false;
   S.bob+=spd*dt*(wantRun?1.9:1.7);
@@ -1889,7 +1969,7 @@ function startGameInner(idx,mode,code){
   const map=MAPS[idx];S.map=map;S.mode=mode;S.code=code||'';
   S.seed=code?hashStr(code):((Math.random()*4e9)>>>0);
   witReset();buildAll(map,S.seed);vmBuild();
-  S.got=new Set();gunReset17();S.killer=null;DF.reset();S.dead=S.esc=false;S.hid=null;S.hDir=0;S.clb=null;STHINT=false;S.stCool=0;S.mdx=S.mdz=0;CLBP=0;$('fade').style.opacity=0;S.f=0;S.stam=1;S.runLock=false;S.flash=true;S.t=0;S.deadT=0;
+  S.got=new Set();gunReset17();S.killer=null;DF.reset();S.dead=S.esc=false;S.hid=null;S.hDir=0;S.clb=null;S.stw=null;S.sh=0;STHINT=false;S.stCool=0;S.mdx=S.mdz=0;CLBP=0;$('fade').style.opacity=0;S.f=0;S.stam=1;S.runLock=false;S.flash=true;S.t=0;S.deadT=0;
   S.spec=null;SPV=null;$('hud').classList.remove('spec');flash.visible=true;$('bLight').classList.add('on');$('hidden').style.display='none';$('danger').style.opacity=0;
   S.x=L.start.x;S.z=L.start.z;S.pitch=0;
   let bestLen=-1;
@@ -2688,7 +2768,7 @@ function fxInDecor(group,list,id){
 }
 function fxFloor(f){
   if(!EXTG)return;const id=L&&L.map?L.map.id:0,ab=(FLOORS[id]||1)-(BASE9[id]?1:0);
-  EXTG.visible=f<ab;EXTG.position.y=-f*WALLH;
+  EXTG.visible=f<ab;EXTG.position.y=-f*WALLH;EXTG.children.forEach(o=>{if(o.userData&&o.userData.slab!==undefined)o.visible=(f===0)});
 }
 function mkShell2(group,wm,nf,id){
   const D=FXD[id];if(!D)return;
@@ -2704,7 +2784,7 @@ function mkShell2(group,wm,nf,id){
     cells.forEach((c,i)=>{d.position.set(cc(c[0]),WALLH*(c[2]+.5),cc(c[1]));d.rotation.set(0,0,0);d.updateMatrix();im.setMatrixAt(i,d.matrix)});im.frustumCulled=false;group.add(im)}
   fxPieces(B2,wl);
   // lantai pemisah (agar dari luar terlihat ada ruang di balik jendela atas)
-  for(let k=1;k<nf;k++)B2.put('b',0x161618,0,(X0+X1)/2,k*WALLH+.17,(Z0+Z1)/2,X1-X0-2*CELL,.3,Z1-Z0-2*CELL,0,0,0);
+  for(let k=1;k<nf;k++){const sl=new THREE.Mesh(new THREE.BoxGeometry(X1-X0-2*CELL,.3,Z1-Z0-2*CELL),mat(0x161618));sl.position.set((X0+X1)/2,k*WALLH+.17,(Z0+Z1)/2);sl.userData.slab=k;group.add(sl)}
   // ubin fasad (berlubang di jendela)
   const tiles=new Map(),panes=new Map(),dd=new THREE.Object3D();
   const addInst=(m,key,x,y,z,ry)=>{let a=m.get(key);if(!a){a=[];m.set(key,a)}a.push([x,y,z,ry])};
