@@ -31,6 +31,9 @@ input.code{width:150px;padding:10px;background:#000;border:1px solid var(--line)
 #peers{font:600 13px var(--ui);color:var(--dim)}
 .hb{pointer-events:auto;width:58px;height:58px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--fg);font:700 13px var(--ui);letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;justify-content:center;text-align:center;touch-action:none}
 .hb.on{background:var(--ember);color:#000}
+.hb.ic{flex-direction:column;gap:2px;padding:0;text-transform:none;letter-spacing:0}.hb.ic span{font:700 9px var(--ui);line-height:1;pointer-events:none}.hb.ic svg{pointer-events:none}
+#gunPad #bFire.ic span{font-size:10px}
+.bag-bar{height:9px;background:#1c1c1a;border:1px solid var(--line)}.bag-bar i{display:block;height:100%;background:var(--ember)}.bag-bar i.full{background:#c0392b}
 #pset{display:flex;flex-direction:column;gap:6px;width:min(92vw,560px)}.pg{border:1px solid var(--line);background:var(--panel);padding:6px 10px}.pg h4{margin:0 0 4px;font:700 12px var(--ui);letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}.pr{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font:600 14px var(--ui);padding:2px 0}.pr b{width:92px;font-weight:600}.pr input[type=range]{flex:1;min-width:90px}.pr span{width:44px;text-align:right;font-size:13px}.tg{padding:5px 10px;border:1px solid var(--line);background:transparent;color:var(--fg);font:600 13px var(--ui)}.tg[aria-pressed=true]{border-color:var(--blood);background:rgba(179,33,27,.4)}
 #gunPad{display:none;position:absolute;right:calc(max(14px,env(safe-area-inset-right,0px)) + 138px);bottom:calc(14px + env(safe-area-inset-bottom,0px));flex-direction:column;gap:10px;align-items:center}
 #gunPad .hb{width:58px;height:58px;flex:none;font-size:13px}#gunPad #bFire{width:74px;height:74px;font-size:14px}#gunPad #bSwap{font-size:22px}
@@ -204,16 +207,16 @@ input.code.nick{width:190px;letter-spacing:.05em;text-transform:none}
 
 <div id="hud">
   <div id="obj"></div><div id="mates"></div><div id="edge"></div>
-  <div id="top-r"><span id="peers"></span><div id="stam"><i></i></div><button class="hb" id="bMap" aria-label="Peta"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></svg></button><button class="hb" id="bPause" style="width:40px;height:40px;font-size:10px">Jeda</button></div>
+  <div id="top-r"><span id="peers"></span><div id="stam"><i></i></div><button class="hb" id="bMap" aria-label="Peta"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></svg></button><button class="hb" id="bPause" aria-label="Jeda" style="width:40px;height:40px"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 5v14M15.5 5v14" stroke-width="3"/></svg></button></div>
   <div id="cross"></div>
   <div id="qBar"><div class="qt"></div><div class="qf"><i></i></div></div>
   <div id="inv"></div><div id="invAct"></div><div id="xh"></div><div id="stunHud"></div><div id="toast"></div><div id="spec"><b>Menonton</b><button class="sb" id="sPrev" aria-label="Pemain sebelumnya">◀</button><span id="sName">-</span><button class="sb" id="sNext" aria-label="Pemain berikutnya">▶</button><button class="sb" id="sExit">Keluar</button></div>
-  <div id="joy"><i></i></div><div id="gunPad"><button class="hb" id="bFire" style="display:none">Tembak</button><button class="hb" id="bSwap">⇄</button><button class="hb" id="bBag">Tas</button></div>
+  <div id="joy"><i></i></div><div id="gunPad"><button class="hb ic" id="bFire" style="display:none" aria-label="Tembak"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="1.2"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></svg><span>Tembak</span></button><button class="hb ic" id="bSwap" aria-label="Ganti"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8h12l-3-3.2M18 16H6l3 3.2"/></svg><span>Ganti</span></button><button class="hb ic" id="bBag" aria-label="Tas"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6.5a3 3 0 0 1 6 0"/><rect x="5" y="6.5" width="14" height="14.5" rx="3.5"/><path d="M9 13.5h6M9 17h6"/></svg><span>Tas</span></button></div>
   <div id="btns">
-    <button class="hb" id="bLight">Senter</button>
-    <button class="hb" id="bTake">Aksi</button>
-    <button class="hb" id="bHide">Sembunyi</button>
-    <button class="hb" id="bRun">Lari</button>
+    <button class="hb ic" id="bLight" aria-label="Senter"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3h8l-1.2 5H9.2z"/><path d="M9.2 8h5.6v11.5a1.5 1.5 0 0 1-1.5 1.5h-2.6a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M12 12v2.5"/><path d="M5 5 3.5 3.8M19 5l1.5-1.2M12 1.2V.2"/></svg><span>Senter</span></button>
+    <button class="hb ic" id="bTake" aria-label="Aksi"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 12.5V5.5a1.5 1.5 0 0 1 3 0V11M11 10.5V4a1.5 1.5 0 0 1 3 0v7M14 10.5V5.5a1.5 1.5 0 0 1 3 0v8c0 4-2.6 6.5-6 6.5-2.6 0-4.2-1-5.6-3.6L3.6 13.2a1.5 1.5 0 0 1 2.6-1.4L8 14.5"/></svg><span>Aksi</span></button>
+    <button class="hb ic" id="bHide" aria-label="Sembunyi"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 6.1A9.4 9.4 0 0 1 12 6c5 0 8.5 4 9.5 6-.5 1-1.6 2.6-3.2 3.9M6.7 7.7C4.6 9 3.3 11 2.5 12c1 2 4.5 6 9.5 6 1.4 0 2.6-.3 3.8-.8"/><path d="M9.9 10a3 3 0 0 0 4.1 4.1"/></svg><span>Sembunyi</span></button>
+    <button class="hb ic" id="bRun" aria-label="Lari"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="15" cy="4.5" r="2"/><path d="M12 8l-3.2 3.2 3 2.6-1.6 5.7M12 8l4 2.2 3 .3M8.8 11.2l-3.3.8M11.8 13.8l3.7 2.4.5 4.3"/></svg><span>Lari</span></button>
     <button class="hb" id="bGun" style="display:none">Senjata</button>
   </div>
 </div>
@@ -266,7 +269,7 @@ input.code.nick{width:190px;letter-spacing:.05em;text-transform:none}
   <p class="note" id="lbHint"></p>
   <div class="row"><button class="btn" id="lbShare">Bagikan Kode</button><button class="btn main" id="lbGo">Mulai Game</button><button class="btn" id="lbLeave">Keluar</button></div>
 </div>
-<button class="hb" id="bChat" style="display:none">Chat</button>
+<button class="hb ic" id="bChat" style="display:none" aria-label="Chat"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H10l-4.5 4v-4H4z"/></svg><span>Chat</span></button>
 <div id="chatBox"><div id="chatLog"></div><div id="chatRow"><div id="chatQuick"></div><div style="display:flex;gap:6px"><input id="chatIn" maxlength="80" placeholder="Ketik pesan..." autocomplete="off"><button class="btn" id="chatSend">Kirim</button></div></div></div>
 <button class="btn" id="cinSkip" style="display:none;position:fixed;top:calc(12px + env(safe-area-inset-top,0px));right:14px;z-index:16;padding:8px 16px;font-size:15px">Lewati ▸</button>
 <div id="cinT"><b></b><small></small></div>
@@ -602,6 +605,7 @@ function updateObj(){
   const all=n>=m.n&&(!q||q.all);
   add(all?((q&&q.van)?'Naik ke van & kabur!':'Lari ke gerbang depan!'):((q&&q.van)?'Selesaikan misi & perbaiki van':'Gerbang depan terkunci'),false,all?'#5fd48a':'#b3211b');
   if(FL.length>1)add(flName9(S.f),false,'#8a8b83');
+  try{gunHud17()}catch(e){}
   if(FL[0]){const open=all,e0=FL[0].L.exit;e0.open=open;e0.mat.color.setHex(open?0x2ecc71:0xb3211b);try{gateMark(open)}catch(e){}}
 }
 function collect(id,remote,who){
@@ -1896,7 +1900,7 @@ function doTake(){
   if(S.hid){toast('Keluar dulu dari persembunyian');return}
   if(q19Take())return;
   const it=nearestItem(3.2);if(it){collect(it.id);return}
-  const wp=nearestWeapon(3);if(wp){pickWeapon(wp.id);return}
+  const wp=nearestWeapon(3);if(wp){if(!bagCanPick(wp))return;pickWeapon(wp.id);return}
   const c=nearestCont(3.1);if(c){c.open=!c.open;sfxCont(c.k,c.open,c.x,c.z);vmReach();ctSend(c);try{q19Noise(c.x,c.z,9)}catch(e){}toast(c.open?'Dibuka':'Ditutup');return}
   toast('Tidak ada yang bisa diambil');
 }
@@ -3897,7 +3901,7 @@ function pickWeapon(id,remote,who){
 const SLN={revolver:'REVOLVER',colt:'COLT',shotgun:'SHOTGUN',kar98:'KAR 98K',sniper:'SNIPER'};
 function gunHud17(){
   const bG=$('bGun'),bF=$('bFire'),xh=$('xh'),inv=$('inv');if(!bF)return;
-  bG.style.display='none';bF.style.display=S.gun?'flex':'none';xh.style.display=S.gun?'block':'none';{const pad=$('gunPad'),has=!!(S.slots&&S.slots.length);if(pad)pad.style.display=has?'flex':'none';const sw=$('bSwap');if(sw)sw.textContent=S.gun?(SLN[S.gun]||'').split(' ')[0]:'⇄';const bb=$('bBag');if(bb)bb.textContent='Tas'+(has?' '+S.slots.length:'');invRender()}
+  bG.style.display='none';bF.style.display=S.gun?'flex':'none';xh.style.display=S.gun?'block':'none';{const pad=$('gunPad'),has=!!(S.slots&&S.slots.length)||questLoad()>0;if(pad)pad.style.display=has?'flex':'none';const sw=$('bSwap');if(sw)hbCap(sw,S.gun?(SLN[S.gun]||'').split(' ')[0]:'Ganti');const bb=$('bBag');if(bb)hbCap(bb,bagUsed()+'/'+BAGMAX);invRender()}
   if(!inv)return;
   for(let i=0;i<5;i++){
     const el=inv.children[i],t=S.slots&&S.slots[i];if(!el)continue;
@@ -4440,8 +4444,8 @@ function invToggle(){invOpen(!S.invOpen)}
 function invRender(){
   const list=$('ipList');if(!list||!S.invOpen)return;
   list.textContent='';
-  const sl=S.slots||[];
-  if(!sl.length){const e=document.createElement('div');e.className='ip-e';e.textContent='Tas kosong. Cari senjata dan peluru di lemari, laci, dan halaman luar.';list.appendChild(e);return}
+  const sl=S.slots||[];bagHeader(list);
+  if(!sl.length&&!questLoad()){const e=document.createElement('div');e.className='ip-e';e.textContent='Tas kosong. Cari senjata dan peluru di lemari, laci, dan halaman luar.';list.appendChild(e);return}
   const mk=(txt,act,i,cls)=>{const b=document.createElement('button');b.textContent=txt;b.dataset.a=act;b.dataset.i=i;if(cls)b.className=cls;return b};
   sl.forEach((t,i)=>{
     const own=S.own.has(t),n=S.guns[t]|0,G=GUN[t];
@@ -4471,6 +4475,44 @@ function invRender(){
 })();
 
 
+/* ===== v22: ikon tombol + kapasitas tas 10 muatan ===== */
+const HBI={"run": "<circle cx=\"15\" cy=\"4.5\" r=\"2\"/><path d=\"M12 8l-3.2 3.2 3 2.6-1.6 5.7M12 8l4 2.2 3 .3M8.8 11.2l-3.3.8M11.8 13.8l3.7 2.4.5 4.3\"/>", "hand": "<path d=\"M8 12.5V5.5a1.5 1.5 0 0 1 3 0V11M11 10.5V4a1.5 1.5 0 0 1 3 0v7M14 10.5V5.5a1.5 1.5 0 0 1 3 0v8c0 4-2.6 6.5-6 6.5-2.6 0-4.2-1-5.6-3.6L3.6 13.2a1.5 1.5 0 0 1 2.6-1.4L8 14.5\"/>", "light": "<path d=\"M8 3h8l-1.2 5H9.2z\"/><path d=\"M9.2 8h5.6v11.5a1.5 1.5 0 0 1-1.5 1.5h-2.6a1.5 1.5 0 0 1-1.5-1.5z\"/><path d=\"M12 12v2.5\"/><path d=\"M5 5 3.5 3.8M19 5l1.5-1.2M12 1.2V.2\"/>", "hide": "<path d=\"M3 3l18 18\"/><path d=\"M10.6 6.1A9.4 9.4 0 0 1 12 6c5 0 8.5 4 9.5 6-.5 1-1.6 2.6-3.2 3.9M6.7 7.7C4.6 9 3.3 11 2.5 12c1 2 4.5 6 9.5 6 1.4 0 2.6-.3 3.8-.8\"/><path d=\"M9.9 10a3 3 0 0 0 4.1 4.1\"/>", "fire": "<circle cx=\"12\" cy=\"12\" r=\"6.5\"/><circle cx=\"12\" cy=\"12\" r=\"1.2\"/><path d=\"M12 2v5M12 17v5M2 12h5M17 12h5\"/>", "swap": "<path d=\"M6 8h12l-3-3.2M18 16H6l3 3.2\"/>", "bag": "<path d=\"M9 6.5a3 3 0 0 1 6 0\"/><rect x=\"5\" y=\"6.5\" width=\"14\" height=\"14.5\" rx=\"3.5\"/><path d=\"M9 13.5h6M9 17h6\"/>", "reload": "<path d=\"M20 12a8 8 0 1 1-2.4-5.7\"/><path d=\"M20.5 3.5V9H15\"/>", "chat": "<path d=\"M4 5h16v11H10l-4.5 4v-4H4z\"/>", "pause": "<path d=\"M8.5 5v14M15.5 5v14\" stroke-width=\"3\"/>"};
+const hbSvg=(k,w)=>'<svg viewBox="0 0 24 24" width="'+(w||26)+'" height="'+(w||26)+'" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+HBI[k]+'</svg>';
+function hbSet(el,k,cap){el.classList.add('ic');el.innerHTML=hbSvg(k)+'<span>'+cap+'</span>'}
+function hbCap(el,t){const s=el.querySelector('span');if(s){if(s.textContent!==t)s.textContent=t}else el.textContent=t}
+const BAGMAX=10;
+function bagCalc(own,guns){let n=own.size;for(const t in guns){const g=guns[t]|0,cap=own.has(t)?(CAP[t]||0):0;n+=Math.ceil(Math.max(0,g-cap)/10)}return n}
+function questLoad(){
+  let n=0;if(!S.carry)return 0;const q=S.qs||new Set(),im={},ids=[];
+  im[QID.bat]=QID.ib;im[QID.oil]=QID.io;im[QID.tire]=QID.it;im[QID.key]=QID.ik;
+  for(const id of S.carry){if(id===QID.tool)n++;else if(id===QID.fuel1||id===QID.fuel2){if(!q.has(QID.gen))n++}else if(im[id]&&!q.has(im[id]))n++}
+  return n;
+}
+function bagQuestItems(){
+  const out=[];if(!S.carry)return out;const q=S.qs||new Set(),nm={};
+  nm[QID.tool]='Perkakas';nm[QID.fuel1]='Bensin';nm[QID.fuel2]='Bensin';nm[QID.bat]='Aki';nm[QID.oil]='Oli';nm[QID.tire]='Ban serep';nm[QID.key]='Kunci van';
+  const im={};im[QID.bat]=QID.ib;im[QID.oil]=QID.io;im[QID.tire]=QID.it;im[QID.key]=QID.ik;
+  for(const id of S.carry){if(id===QID.fuel1||id===QID.fuel2){if(q.has(QID.gen))continue}else if(im[id]&&q.has(im[id]))continue;out.push(nm[id])}
+  return out;
+}
+function bagUsed(){return bagCalc(S.own||new Set(),S.guns||{})+questLoad()}
+function bagFullMsg(){toast('Tas penuh ('+bagUsed()+'/'+BAGMAX+') — buang senjata atau peluru dulu');blip(200);vib&&vib(30)}
+function bagCanPick(w){
+  const t=w.type,G=GUN[t],amt=w.amt!=null?w.amt:(w.ammo?G.box:G.ammo),own2=new Set(S.own),g2=Object.assign({},S.guns);
+  g2[t]=(g2[t]|0)+amt;if(!w.ammo)own2.add(t);
+  const after=bagCalc(own2,g2)+questLoad(),now=bagUsed();
+  if(after>BAGMAX&&after>now){bagFullMsg();return false}
+  return true;
+}
+function bagHeader(list){
+  const c=document.createElement('div');c.className='ip-c';c.style.gridColumn='1/-1';const u=bagUsed();
+  const h=document.createElement('div'),a=document.createElement('span'),b=document.createElement('small');h.className='ip-n';
+  a.textContent='Muatan tas';b.textContent=u+' / '+BAGMAX;h.appendChild(a);h.appendChild(b);c.appendChild(h);
+  const bar=document.createElement('div');bar.className='bag-bar';const i=document.createElement('i');i.style.width=Math.min(100,u/BAGMAX*100)+'%';if(u>=BAGMAX)i.className='full';bar.appendChild(i);c.appendChild(bar);
+  const items=bagQuestItems(),n=document.createElement('div'),sp=document.createElement('span');n.className='ip-b';sp.textContent='Barang misi: '+(items.length?items.join(', '):'-');n.appendChild(sp);c.appendChild(n);
+  const t=document.createElement('div');t.className='ip-e';t.style.padding='2px';t.style.fontSize='11px';t.textContent='Senjata = 1, peluru cadangan = 1 per 10 butir, tiap barang misi = 1. Benda misi utama tidak memakai tas.';c.appendChild(t);
+  list.appendChild(c);
+}
 /* ===== v21: van camping, hutan lebat, film pembuka/penutup, misi perbaikan van ===== */
 let VAN=null;
 const VANTXT={pt_bat:'Aki pengganti',pt_oil:'Oli mesin',pt_tire:'Ban serep',pt_key:'Kunci kontak van'};
@@ -4939,7 +4981,7 @@ function q19Mesh(k){
 }
 function q19Init(){
   QM.obj.forEach(o=>{try{o.mesh.parent&&o.mesh.parent.remove(o.mesh)}catch(e){}});
-  q19SndStop();try{vanSndStop()}catch(e){}QM.obj=[];QM.act=null;QM.pulse=6;QM.seq=0;QM.qn=null;QM.seen.clear();S.qs=new Set();
+  q19SndStop();try{vanSndStop()}catch(e){}QM.obj=[];QM.act=null;QM.pulse=6;QM.seq=0;QM.qn=null;QM.seen.clear();S.qs=new Set();S.carry=new Set();
   const R=q19Rng((S.seed^0x9e3779b1)>>>0),nf=FL.length,used=new Set();
   const sx=cellOf(FL[0].L.start.x),sy=cellOf(FL[0].L.start.z);
   const spec=[[QID.tool,'tool',Math.min(1,nf-1),0],[QID.fuel1,'fuel',0,1],[QID.fuel2,'fuel',nf-1,1],[QID.panel,'panel',0,0],[QID.gen,'gen',0,1]].concat(VAN?[[QID.bat,'pt_bat',Math.min(1,nf-1),1],[QID.oil,'pt_oil',0,1],[QID.tire,'pt_tire',nf-1,0],[QID.key,'pt_key',Math.min(1,nf-1),1]]:[]);
@@ -4976,6 +5018,7 @@ function q19Apply(x,z,r,f){
 }
 function q19Done(o,remote){
   if(o.done)return;S.qs.add(o.id);o.done=true;
+  if(!remote&&(o.k==='tool'||o.k==='fuel'||k3(o.k)==='pt_')){S.carry=S.carry||new Set();S.carry.add(o.id)}
   if(k3(o.k)==='pt_'||k3(o.k)==='vi_'){vanDone(o,remote);updateObj();return}
   if(o.k==='tool'||o.k==='fuel'){
     o.mesh.visible=false;blip(remote?420:660);
@@ -4994,8 +5037,7 @@ function q19Take(){
   const o=q19Near(3.2);if(!o)return false;
   if(o.k==='gate_t'){if(GATE){GATE.want=GATE.want?0:1;blip(GATE.want?380:300);toast(GATE.want?'Gerbang dibuka':'Gerbang ditutup')}return true}
   if(k3(o.k)==='vi_')return vanTake(o);
-  if(k3(o.k)==='pt_'){q19Done(o,false);return true}
-  if(o.k==='tool'||o.k==='fuel'){q19Done(o,false);return true}
+  if(k3(o.k)==='pt_'||o.k==='tool'||o.k==='fuel'){if(bagUsed()+1>BAGMAX){bagFullMsg();return true}q19Done(o,false);return true}
   if(QM.act){toast('Sedang dikerjakan…');return true}
   const st=q19State();
   if(o.k==='panel'){
@@ -5233,7 +5275,7 @@ function actFrame(dt){
 }
 (function(){
   const d=document.createElement('div');d.id='ammoHud';d.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:9;font:700 16px var(--ui);color:#e8e6dc;text-shadow:0 1px 6px #000;display:none;text-align:center;pointer-events:none;white-space:nowrap';document.body.appendChild(d);
-  const gp=$('gunPad'),b=document.createElement('button');b.className='hb';b.id='bRel';b.textContent='Isi';b.style.display='none';if(gp)gp.insertBefore(b,$('bSwap'));
+  const gp=$('gunPad'),b=document.createElement('button');b.className='hb';b.id='bRel';hbSet(b,'reload','Isi');b.style.display='none';if(gp)gp.insertBefore(b,$('bSwap'));
   b.addEventListener('pointerdown',e=>{e.preventDefault();reload17()});
 })();
 let _ah='';
