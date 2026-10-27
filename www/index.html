@@ -235,10 +235,6 @@ input.code.nick{width:190px;letter-spacing:.05em;text-transform:none}
     <div class="pg"><h4>Suara</h4>
       <div class="pr"><b>Volume</b><input type="range" min="0" max="100" data-s="vol"><span data-o></span><button class="tg" data-s="mute">Bisu</button></div></div>
     <div class="pg"><h4>Grafik</h4>
-      <div class="pr"><b>Kualitas</b><button class="tg" data-s="q" data-v="0">Rendah</button><button class="tg" data-s="q" data-v="1">Sedang</button><button class="tg" data-s="q" data-v="2">Tinggi</button></div>
-      <div class="pr"><b>HD</b><button class="tg" data-s="hd" data-v="0">Mati</button><button class="tg" data-s="hd" data-v="1">HD</button><button class="tg" data-s="hd" data-v="2">HD+ Bayangan</button><button class="tg" data-s="hd" data-v="3">UE4</button></div>
-      <div class="pr" style="font-size:11px;opacity:.65"><span>HD: cahaya per-pixel, anti-aliasing, bloom, warna sinematik. HD+: bayangan senter. UE4: material PBR + pantulan, SSAO, eksposur mata otomatis, tone-mapping ACES, motion blur, bayangan lembut (paling berat). Material per-pixel/PBR berlaku penuh setelah game dibuka ulang.</span></div>
-      <div class="pr"><b>Efek</b><button class="tg" data-s="grass">Rumput</button><button class="tg" data-s="part">Daun/debu</button><button class="tg" data-s="mist">Kabut</button><button class="tg" data-s="wind">Angin</button></div>
       <div class="pr"><b>Kecerahan</b><input type="range" min="70" max="150" data-s="bright"><span data-o></span></div></div>
     <div class="pg"><h4>Kontrol</h4>
       <div class="pr"><b>Sensitivitas</b><input type="range" min="40" max="220" data-s="sens"><span data-o></span></div></div>
@@ -316,14 +312,14 @@ input.code.nick{width:190px;letter-spacing:.05em;text-transform:none}
 <script>
 'use strict';
 /* ===== v18 boot: tingkat grafis HD (dibaca sebelum material dibuat) ===== */
-const HDQ=(()=>{try{const o=JSON.parse(localStorage.getItem('mc_set')||'{}')||{};return o.hd===undefined?1:(o.hd|0)}catch(e){return 1}})();
+const HDQ=3;/* UE4 langsung aktif */
 if(HDQ>=1){
   /* pencahayaan per-pixel: Lambert (per-vertex, terlihat kotak-kotak) diganti Phong dengan kilau halus */
   if(HDQ>=3){/* UE4: PBR (GGX) */
     THREE.MeshLambertMaterial=function(p){p=Object.assign({},p||{});delete p.reflectivity;delete p.combine;const m=new THREE.MeshStandardMaterial(Object.assign({roughness:.8,metalness:0,envMapIntensity:.3},p));return m};
   }else
   THREE.MeshLambertMaterial=function(p){const m=new THREE.MeshPhongMaterial(Object.assign({specular:0x1a1a1a,shininess:20},p||{}));return m};
-  THREE.Texture.DEFAULT_ANISOTROPY=4;
+  THREE.Texture.DEFAULT_ANISOTROPY=8;
 }
 const $=id=>document.getElementById(id);
 const CELL=3,WALLH=3.4,GW=48,GH=38;
@@ -446,7 +442,7 @@ function planLevel(map,seed){
 /* ===== Three.js: renderer, lampu, tekstur ===== */
 const canvas=$('c');
 const renderer=(function(){try{return new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:'high-performance'})}catch(e1){try{return new THREE.WebGLRenderer({canvas,antialias:false})}catch(e2){e2.message='WebGL tidak bisa dibuat: '+(e2.message||'');throw e2}}})();
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(72,1,.05,70);
 camera.rotation.order='YXZ';
@@ -495,7 +491,7 @@ void main(){
   vec2 ca=(vUv-.5)*.0016;c.r=mix(c.r,texture2D(tD,vUv+ca).r,.7);c.b=mix(c.b,texture2D(tD,vUv-ca).b,.7);
   c*=mix(1.,texture2D(tA,vUv).r,uAO);
  }
- c+=(c-(nw+ne+sw+se)*.25)*.32;
+ c+=(c-(nw+ne+sw+se)*.25)*.12;
  c+=texture2D(tB,vUv).rgb*uBl;
  float ex=uEx;if(uU>.5)ex*=texture2D(tE,vec2(.5)).r*4.;
  c*=ex;float l=lum(c);
@@ -506,19 +502,19 @@ void main(){
  c=mix(vec3(lum(c)),c,uSat);
  vec2 q=(vUv-.5)*vec2(uAsp,1.);c*=1.-uVig*smoothstep(.28,.95,length(q)*1.12);
  c+=(hash(vUv*vec2(1013.,577.)+fract(uT)*91.)-.5)*uGr;
- gl_FragColor=vec4(max(c,0.),1.);}`,{tD:{value:null},tB:{value:null},px:{value:new THREE.Vector2()},uT:{value:0},uBl:{value:.5},uVig:{value:.5},uGr:{value:.035},uEx:{value:1.08},uSat:{value:1.04},uAsp:{value:1.7},uU:{value:0},uAO:{value:.85},uMv:{value:new THREE.Vector2()},tA:{value:null},tE:{value:null}});
+ gl_FragColor=vec4(max(c,0.),1.);}`,{tD:{value:null},tB:{value:null},px:{value:new THREE.Vector2()},uT:{value:0},uBl:{value:.5},uVig:{value:.58},uGr:{value:0},uEx:{value:1.08},uSat:{value:1.04},uAsp:{value:1.7},uU:{value:0},uAO:{value:.85},uMv:{value:new THREE.Vector2()},tA:{value:null},tE:{value:null}});
   GX.mAO=mk(`uniform sampler2D tZ;uniform vec2 uPr;uniform float uN,uF,uR;varying vec2 vUv;
 float lz(vec2 uv){float d=texture2D(tZ,uv).x;return 2.*uN*uF/(uF+uN-(2.*d-1.)*(uF-uN));}
 void main(){float z=lz(vUv);if(z>40.){gl_FragColor=vec4(1.);return;}
  float ig=fract(52.9829189*fract(dot(floor(gl_FragCoord.xy),vec2(.06711056,.00583715))));
  float rot=floor(mod(gl_FragCoord.x,4.)+4.*mod(gl_FragCoord.y,4.))/16.*6.2831;
- float rr=uR*uPr.y/z;float occ=0.;
+ float rr=min(uR*uPr.y/z,.05);float occ=0.;
  for(int i=0;i<10;i++){float f=(float(i)+.5)/10.;float a=rot+float(i)*2.39996;float r=rr*(.2+.8*f);
   vec2 o=vec2(cos(a),sin(a))*r*vec2(1./uPr.x,1.);float zs=lz(vUv+o);float df=z-zs;
-  occ+=(df>.04*z*.2+.02&&df<uR*2.)?(1.-df/(uR*2.)):0.;}
- gl_FragColor=vec4(vec3(1.-occ/10.*1.6),1.);}`,{tZ:{value:null},uPr:{value:new THREE.Vector2(1.7,1)},uN:{value:.05},uF:{value:70},uR:{value:.55}});
+  occ+=(df>.06*z+.04&&df<uR*2.)?(1.-df/(uR*2.)):0.;}
+ gl_FragColor=vec4(vec3(1.-occ/10.*1.6*smoothstep(.5,2.2,z)),1.);}`,{tZ:{value:null},uPr:{value:new THREE.Vector2(1.7,1)},uN:{value:.05},uF:{value:70},uR:{value:.55}});
   GX.mAOB=mk(`uniform sampler2D tD;uniform vec2 px;varying vec2 vUv;
-void main(){float a=(texture2D(tD,vUv+px*vec2(-1.,-1.)).r+texture2D(tD,vUv+px*vec2(1.,-1.)).r+texture2D(tD,vUv+px*vec2(-1.,1.)).r+texture2D(tD,vUv+px*vec2(1.,1.)).r)*.25;gl_FragColor=vec4(vec3(clamp(a,0.,1.)),1.);}`,{tD:{value:null},px:{value:new THREE.Vector2()}});
+void main(){float a=0.;for(int y=0;y<4;y++)for(int x=0;x<4;x++)a+=texture2D(tD,vUv+px*vec2(float(x)-1.5,float(y)-1.5)).r;a*=.0625;gl_FragColor=vec4(vec3(clamp(a,0.,1.)),1.);}`,{tD:{value:null},px:{value:new THREE.Vector2()}});
   GX.mEye=mk(`uniform sampler2D tD;uniform sampler2D tP;uniform float uDt;varying vec2 vUv;
 void main(){float s=0.,w=0.;for(int y=0;y<7;y++)for(int x=0;x<7;x++){vec2 g=(vec2(float(x),float(y))+.5)/7.;float k=1.-.6*length(g-.5)*1.4;s+=dot(texture2D(tD,g).rgb,vec3(.299,.587,.114))*k;w+=k;}
  float avg=s/w;float tg=clamp(.13/max(avg,.002),.8,1.55);float p=texture2D(tP,vec2(.5)).r*4.;if(p<.05)p=1.;
@@ -543,7 +539,7 @@ function gxSize(){
     GX.e1=new THREE.WebGLRenderTarget(1,1,oe);GX.e2=new THREE.WebGLRenderTarget(1,1,oe)}
 }
 const hemi18=new THREE.HemisphereLight(0x8aa0c4,0x2b1d14,0);scene.add(hemi18);
-function gxLvl(){return GX.fail?0:((typeof SET17!=='undefined'&&SET17.hd!==undefined)?SET17.hd|0:HDQ)}
+function gxLvl(){return GX.fail?0:3}
 /* bayangan senter (HD+) */
 function gxShadowFlags(on){
   const walk=n=>{if(n===camera)return;
@@ -556,11 +552,12 @@ function gxShadowFlags(on){
 function gxShadowSet(on,soft){
   const sl=soft?2:1;if(on===GX.sh&&(!on||sl===GX.shl))return;GX.sh=on;GX.shl=sl;
   renderer.shadowMap.enabled=on;renderer.shadowMap.type=soft?THREE.PCFSoftShadowMap:THREE.PCFShadowMap;
-  flash.castShadow=on;if(on){flash.shadow.mapSize.set(soft?768:512,soft?768:512);if(flash.shadow.map){flash.shadow.map.dispose();flash.shadow.map=null}flash.shadow.camera.near=.15;flash.shadow.camera.far=24;flash.shadow.bias=-.0007;flash.shadow.normalBias=.03}
+  flash.castShadow=on;if(on){flash.shadow.mapSize.set(soft?768:512,soft?768:512);if(flash.shadow.map){flash.shadow.map.dispose();flash.shadow.map=null}flash.shadow.camera.near=.15;flash.shadow.camera.far=24;flash.shadow.bias=-.0007;flash.shadow.normalBias=.05}
   gxShadowFlags(on);
   scene.traverse(n=>{if(n.material&&!Array.isArray(n.material))n.material.needsUpdate=true});
 }
 function gxEnv(){
+  return;/* v26: peta lingkungan PMREM dimatikan — datanya rusak (nilai ekstrem) di sebagian GPU dan membuat layar hitam/silau */
   if(GX.env||GX.envFail||!THREE.PMREMGenerator)return;
   try{const es=new THREE.Scene();
     es.add(new THREE.Mesh(new THREE.SphereGeometry(10,24,12),new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,vertexShader:'varying vec3 vP;void main(){vP=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'varying vec3 vP;void main(){vec3 d=normalize(vP);float h=d.y*.5+.5;vec3 c=mix(vec3(.02,.025,.03),vec3(.07,.09,.14),smoothstep(.3,1.,h));c+=vec3(.9,.95,1.)*pow(max(dot(d,normalize(vec3(.4,.55,-.5))),0.),220.)*1.5;gl_FragColor=vec4(c,1.);}'})));
@@ -615,25 +612,22 @@ renderer.render=function(sc,cam){
 };
 /* penjaga performa: kalau masih berat, matikan bloom lalu bayangan */
 function gxPerf(now){
+  return;/* permanen: tidak ada penurunan kualitas otomatis */
   if(typeof S==='undefined'||!S.on||S.paused||(typeof CIN!=='undefined'&&CIN.on)){GX.pl=now;return}
   if(GX.pl){const d=now-GX.pl;if(d<200){GX.sum=(GX.sum||0)+d;GX.n=(GX.n||0)+1}}GX.pl=now;
   if((GX.n||0)<90)return;const avg=GX.sum/GX.n;GX.sum=0;GX.n=0;
-  const low=typeof AR!=='undefined'&&AR.s<=.6;
+  const low=true;
   if(avg>34&&low){if(GX.sh){GX.lite=true;gxApply();try{toast('HD+ dimatikan otomatis agar lancar')}catch(e){}}else if(!GX.lite){GX.lite=true;try{toast('Bloom dimatikan otomatis agar lancar')}catch(e){}}}
 }
 
 
 function mkTex(base,seed,kind){
-  const c=document.createElement('canvas');c.width=c.height=HDQ>=1?256:128;const g=c.getContext('2d'),R=rng(seed);if(HDQ>=1)g.scale(2,2);
+  const c=document.createElement('canvas');c.width=c.height=HDQ>=3?512:HDQ>=1?256:128;const g=c.getContext('2d'),R=rng(seed);if(HDQ>=1)g.scale(HDQ>=3?4:2,HDQ>=3?4:2);
   g.fillStyle=base;g.fillRect(0,0,128,128);
-  for(let i=0;i<700;i++){const d=R()<.5;g.fillStyle=d?`rgba(0,0,0,${R()*.12})`:`rgba(255,255,255,${R()*.06})`;g.fillRect(R()*128,R()*128,1+R()*4,1+R()*4)}
-  if(HDQ>=1)for(let i=0;i<2600;i++){g.fillStyle=R()<.5?`rgba(0,0,0,${.05+R()*.12})`:`rgba(255,255,255,${.02+R()*.06})`;g.fillRect(R()*128,R()*128,.5,.5+R()*1.2)}
+  for(let i=0;i<130;i++){/* noda lembut (bukan kotak tajam) agar dekat pun tidak terlihat bergaris */const x=R()*128,y=R()*128,r=6+R()*14,d=R()<.55,gr=g.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,d?`rgba(0,0,0,${.05+R()*.05})`:`rgba(255,255,255,${.02+R()*.03})`);gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(x-r,y-r,r*2,r*2)}
+  if(HDQ>=3){for(let i=0;i<1400;i++){const x=R()*128,y=R()*128,r=.25+R()*.5;g.fillStyle=R()<.5?`rgba(0,0,0,${.03+R()*.05})`:`rgba(255,255,255,${.015+R()*.03})`;g.beginPath();g.arc(x,y,r,0,6.2832);g.fill()}}
   if(kind==='wall'){
-    for(let i=0;i<6;i++){const x=R()*128;g.fillStyle=`rgba(0,0,0,${.08+R()*.1})`;g.fillRect(x,0,2+R()*5,40+R()*88)}
-    g.fillStyle='rgba(120,12,10,.35)';const x=R()*100;g.fillRect(x,30,3,60);g.fillRect(x-6,60,15,3);
-    g.fillStyle='rgba(0,0,0,.25)';g.fillRect(0,118,128,10);
   }else{
-    g.strokeStyle='rgba(0,0,0,.35)';g.lineWidth=2;g.strokeRect(1,1,126,126);g.beginPath();g.moveTo(64,0);g.lineTo(64,128);g.moveTo(0,64);g.lineTo(128,64);g.stroke();
   }
   const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t;
 }
@@ -652,7 +646,7 @@ function buildLevel(map,seed){
   const W=GW*CELL,H=GH*CELL;
   // lantai & langit-langit
   const ft=mkTex(map.floor,seed+1,'floor');ft.repeat.set(GW/2,GH/2);
-  const fw=FLEV?(FP.x1-FP.x0+1)*CELL:W,fh=FLEV?(FP.y1-FP.y0+1)*CELL:H;if(FLEV)ft.repeat.set(fw/CELL/2,fh/CELL/2);const fl=new THREE.Mesh(new THREE.PlaneGeometry(fw,fh),mat(0xffffff,{map:ft}));fl.rotation.x=-Math.PI/2;if(fl.material.roughness!==undefined){fl.material.roughness=.38;fl.material.metalness=.06}fl.position.set(FLEV?(FP.x0+FP.x1+1)*CELL/2:W/2,0,FLEV?(FP.y0+FP.y1+1)*CELL/2:H/2);fl.userData.isFloor=true;group.add(fl);
+  const fw=FLEV?(FP.x1-FP.x0+1)*CELL:W,fh=FLEV?(FP.y1-FP.y0+1)*CELL:H;if(FLEV)ft.repeat.set(fw/CELL/2,fh/CELL/2);const fl=new THREE.Mesh(new THREE.PlaneGeometry(fw,fh),mat(0xffffff,{map:ft,bumpMap:ft,bumpScale:.25}));fl.rotation.x=-Math.PI/2;if(fl.material.roughness!==undefined){fl.material.roughness=.38;fl.material.metalness=.06}fl.position.set(FLEV?(FP.x0+FP.x1+1)*CELL/2:W/2,0,FLEV?(FP.y0+FP.y1+1)*CELL/2:H/2);fl.userData.isFloor=true;group.add(fl);
   const ct=mkTex(map.ceil,seed+2,'floor');ct.repeat.set(GW/3,GH/3);
   const ce=new THREE.Mesh(new THREE.PlaneGeometry((FP.x1-FP.x0+1)*CELL,(FP.y1-FP.y0+1)*CELL),mat(0xffffff,{map:ct}));ce.rotation.x=Math.PI/2;ce.position.set((FP.x0+FP.x1+1)*CELL/2,WALLH,(FP.y0+FP.y1+1)*CELL/2);ce.userData.isCeil=true;group.add(ce);
   // dinding (instanced, hanya yang menghadap lantai)
@@ -665,7 +659,7 @@ function buildLevel(map,seed){
     let vis=false;for(const d of[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]]){const nx=x+d[0],ny=y+d[1];if(nx>=0&&ny>=0&&nx<GW&&ny<GH&&grid[ny*GW+nx]!==1){vis=true;break}}
     if(vis)cells.push([x,y]);
   }
-  const wm=new THREE.InstancedMesh(new THREE.BoxGeometry(CELL,WALLH,CELL),mat(0xffffff,{map:wt}),cells.length);try{aoWall17(wm.material)}catch(e){window.__mcErr&&window.__mcErr(e)}
+  const wm=new THREE.InstancedMesh(new THREE.BoxGeometry(CELL,WALLH,CELL),mat(0xffffff,{map:wt,bumpMap:wt,bumpScale:.3}),cells.length);try{aoWall17(wm.material)}catch(e){window.__mcErr&&window.__mcErr(e)}
   const dm=new THREE.Object3D();
   cells.forEach((c,i)=>{dm.position.set(cc(c[0]),WALLH/2,cc(c[1]));dm.updateMatrix();wm.setMatrixAt(i,dm.matrix)});
   group.add(wm);
@@ -2369,18 +2363,26 @@ function startGameInner(idx,mode,code){
   if(!started){started=true;lastTs=performance.now();requestAnimationFrame(loop)}
 }
 let LOOPERR=0;
-const FRAME_MS=1000/60;let nextFrameAt=0;
+/* v25: kunci ~60 FPS stabil per-vsync. Resolusi TIDAK diubah. */
+const FPSL={prev:0,d:[],n:1,tick:0,raw:16.7};
+function fpsGate(now){
+  if(FPSL.prev){const d=now-FPSL.prev;if(d>2&&d<60){FPSL.d.push(d);
+    if(FPSL.d.length>=40){const a=FPSL.d.slice().sort((x,y)=>x-y),m=a[a.length>>1];FPSL.d.length=0;FPSL.raw=m;FPSL.n=Math.max(1,Math.floor((1000/m)/60+.25))}}}
+  FPSL.prev=now;
+  if(FPSL.n<=1){FPSL.tick=0;return true}
+  return(++FPSL.tick%FPSL.n)===0;
+}
+document.addEventListener('visibilitychange',()=>{FPSL.prev=0;FPSL.d.length=0;lastTs=performance.now()});
 function loop(now){
   requestAnimationFrame(loop);
-  /* kunci 60 FPS: layar 90/120/144Hz dilewati frame-nya, layar 60Hz tidak terpengaruh */
-  if(nextFrameAt===0)nextFrameAt=now;
-  if(now<nextFrameAt-1.5)return;
-  nextFrameAt+=FRAME_MS;if(now-nextFrameAt>FRAME_MS*2)nextFrameAt=now+FRAME_MS;
-  try{adaptRes(now)}catch(e){}try{gxPerf(now)}catch(e){}
+  if(!fpsGate(now))return;
+  try{gxPerf(now)}catch(e){}
   try{if(innerWidth!==RW||innerHeight!==RH)resize();loopBody(now)}catch(e){window.__mcErr(e);if(++LOOPERR===1)try{toast('Terjadi kesalahan kecil, game tetap jalan')}catch(_){}}
 }
+let dtS=0;
 function loopBody(now){
-  const dt=Math.min(.05,(now-lastTs)/1000);lastTs=now;
+  let dt=Math.min(.05,Math.max(.001,(now-lastTs)/1000));lastTs=now;
+  if(dt<.034){dtS=dtS?dtS*.6+dt*.4:dt;dt=dtS}else dtS=0;
   if(!S.on)return;
   if(S.paused&&S.mode!=='online'){renderer.render(scene,camera);return}
   S.t+=dt;
@@ -4283,10 +4285,11 @@ function gunPose19(dt){
 
 /* ===== v17e: menu jeda + pengaturan ===== */
 const SET17=Object.assign({vol:1,mute:false,q:2,hd:1,grass:true,part:true,mist:true,wind:true,bright:1,sens:1},(()=>{try{return JSON.parse(localStorage.getItem('mc_set')||'{}')||{}}catch(e){return{}}})());
+Object.assign(SET17,{q:2,hd:3,grass:true,part:true,mist:true,wind:true});/* grafik dikunci permanen: Tinggi + UE4 + semua efek */
 const saveSet17=()=>{try{localStorage.setItem('mc_set',JSON.stringify(SET17))}catch(e){}};
 const GRASSL=[],MISTL=[];
 function applySet17(){
-  const dpr=window.devicePixelRatio||1,pr=[.7,1,Math.min(dpr,1.5)][SET17.q|0]||1;
+  const dpr=window.devicePixelRatio||1,pr=[.7,1,Math.min(dpr,2)][SET17.q|0]||1;
   try{renderer.setPixelRatio(Math.max(.5,pr));resize()}catch(e){}
   if(window.MASTER17)MASTER17.gain.value=SET17.mute?0:Math.max(0,Math.min(1.5,SET17.vol));
   GRASSL.forEach(m=>m.visible=!!SET17.grass);MISTL.forEach(m=>m.visible=!!SET17.mist);try{gxApply()}catch(e){}
@@ -4294,7 +4297,7 @@ function applySet17(){
 }
 function pauseOpen17(){
   if(!S.on||S.dead&&!S.spec&&false)return;if(S.paused)return;
-  S.paused=true;$('pause').style.display='flex';$('pNote').textContent=S.mode==='online'?'Mabar: game tetap berjalan di belakang menu ini.':'Game dijeda.';
+  S.paused=true;$('pause').style.display='flex';$('pNote').textContent=S.mode==='online'?'Mabar: game tetap berjalan.':'';
   if(S.mode!=='online'&&AC)try{AC.suspend()}catch(e){}
   pauseSync17();
 }
@@ -6017,7 +6020,7 @@ vanSync=function(){_vs();const V0=VAN;if(!V0)return;
 
 /* ===== v24: resolusi adaptif — otomatis turun saat berat, naik lagi saat stabil ===== */
 const AR={s:1,last:0,sum:0,n:0,ok:0,cool:0,wait:6};
-function arBase(){const dpr=window.devicePixelRatio||1;return [.7,1,Math.min(dpr,1.5)][SET17.q|0]||1}
+function arBase(){const dpr=window.devicePixelRatio||1;return [.7,1,Math.min(dpr,2)][SET17.q|0]||1}
 function arApply(){try{renderer.setPixelRatio(Math.max(.5,arBase()*AR.s));resize()}catch(e){}}
 const _as17=applySet17;
 applySet17=function(){_as17.apply(this,arguments);arApply()};
@@ -6032,6 +6035,40 @@ function adaptRes(now){
   else if(avg<17.6){if(++AR.ok>=AR.wait&&AR.s<1&&!AR.cool){AR.s=Math.min(1,AR.s+.05);AR.ok=0;arApply()}}
   else AR.ok=0;
 }
+
+/* ===== v25b: jumlah lampu dibuat TETAP supaya shader tidak dikompilasi ulang (penyebab game "freeze" sesaat) =====
+   Lampu tidak pernah disembunyikan lagi; kalau "mati" intensitasnya 0 saat digambar. */
+(function(){
+  const KL=[],MLK=[];
+  const LV=l=>{try{Object.defineProperty(l,'visible',{get(){return true},set(v){l._off=!v},configurable:true})}catch(e){}};
+  [flash,nearL,bnc].concat(lampL).forEach(l=>{LV(l);KL.push(l)});
+  const strip=fn=>function(){const g=fn.apply(this,arguments),ls=[];
+    g.traverse(o=>{if(o.isLight)ls.push(o)});
+    ls.forEach(o=>{g.userData._lt={c:o.color.getHex(),i:o.intensity,d:o.distance,p:o.position.clone()};if(o.parent)o.parent.remove(o)});
+    return g};
+  makeMonster=strip(makeMonster);makeBunny=strip(makeBunny);
+  const _im=initMonsters;
+  initMonsters=function(){
+    MLK.forEach(k=>scene.remove(k.l));MLK.length=0;
+    const r=_im.apply(this,arguments);
+    ENTS.forEach(E=>{const t=E.mesh&&E.mesh.userData._lt;if(!t)return;
+      const l=new THREE.PointLight(t.c,t.i,t.d);scene.add(l);LV(l);MLK.push({l,own:E.mesh,off:t.p,base:t.i})});
+    return r};
+  const inScene=o=>{for(;o;o=o.parent){if(!o.visible)return false;if(o===scene)return true}return false};
+  const R0=renderer.render.bind(renderer),sv=[],V=new THREE.Vector3();
+  renderer.render=function(s,c){
+    sv.length=0;
+    for(const l of KL){if(l._off){sv.push(l,l.intensity);l.intensity=0}}
+    for(const k of MLK){const l=k.l;
+      if(inScene(k.own)){V.copy(k.off).applyMatrix4(k.own.matrixWorld);l.position.copy(V);l.intensity=k.base}
+      else l.intensity=0}
+    R0(s,c);
+    for(let i=0;i<sv.length;i+=2)sv[i].intensity=sv[i+1];
+  };
+})();
+
+/* v25c: pra-kompilasi shader saat mulai game */
+(function(){const _sg=startGameInner;startGameInner=function(){const r=_sg.apply(this,arguments);try{renderer.render(scene,camera);if(GX.rt)renderer.setRenderTarget(GX.rt);renderer.compile(scene,camera);renderer.setRenderTarget(null)}catch(e){try{renderer.setRenderTarget(null)}catch(_){}}return r}})();
 </script>
 
 </body></html>
