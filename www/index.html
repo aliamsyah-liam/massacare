@@ -236,6 +236,8 @@ input.code.nick{width:190px;letter-spacing:.05em;text-transform:none}
       <div class="pr"><b>Volume</b><input type="range" min="0" max="100" data-s="vol"><span data-o></span><button class="tg" data-s="mute">Bisu</button></div></div>
     <div class="pg"><h4>Grafik</h4>
       <div class="pr"><b>Kualitas</b><button class="tg" data-s="q" data-v="0">Rendah</button><button class="tg" data-s="q" data-v="1">Sedang</button><button class="tg" data-s="q" data-v="2">Tinggi</button></div>
+      <div class="pr"><b>HD</b><button class="tg" data-s="hd" data-v="0">Mati</button><button class="tg" data-s="hd" data-v="1">HD</button><button class="tg" data-s="hd" data-v="2">HD+ Bayangan</button><button class="tg" data-s="hd" data-v="3">UE4</button></div>
+      <div class="pr" style="font-size:11px;opacity:.65"><span>HD: cahaya per-pixel, anti-aliasing, bloom, warna sinematik. HD+: bayangan senter. UE4: material PBR + pantulan, SSAO, eksposur mata otomatis, tone-mapping ACES, motion blur, bayangan lembut (paling berat). Material per-pixel/PBR berlaku penuh setelah game dibuka ulang.</span></div>
       <div class="pr"><b>Efek</b><button class="tg" data-s="grass">Rumput</button><button class="tg" data-s="part">Daun/debu</button><button class="tg" data-s="mist">Kabut</button><button class="tg" data-s="wind">Angin</button></div>
       <div class="pr"><b>Kecerahan</b><input type="range" min="70" max="150" data-s="bright"><span data-o></span></div></div>
     <div class="pg"><h4>Kontrol</h4>
@@ -313,6 +315,16 @@ input.code.nick{width:190px;letter-spacing:.05em;text-transform:none}
 <script>if(!window.THREE)document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>')</script>
 <script>
 'use strict';
+/* ===== v18 boot: tingkat grafis HD (dibaca sebelum material dibuat) ===== */
+const HDQ=(()=>{try{const o=JSON.parse(localStorage.getItem('mc_set')||'{}')||{};return o.hd===undefined?1:(o.hd|0)}catch(e){return 1}})();
+if(HDQ>=1){
+  /* pencahayaan per-pixel: Lambert (per-vertex, terlihat kotak-kotak) diganti Phong dengan kilau halus */
+  if(HDQ>=3){/* UE4: PBR (GGX) */
+    THREE.MeshLambertMaterial=function(p){p=Object.assign({},p||{});delete p.reflectivity;delete p.combine;const m=new THREE.MeshStandardMaterial(Object.assign({roughness:.8,metalness:0,envMapIntensity:.3},p));return m};
+  }else
+  THREE.MeshLambertMaterial=function(p){const m=new THREE.MeshPhongMaterial(Object.assign({specular:0x1a1a1a,shininess:20},p||{}));return m};
+  THREE.Texture.DEFAULT_ANISOTROPY=4;
+}
 const $=id=>document.getElementById(id);
 const CELL=3,WALLH=3.4,GW=48,GH=38;
 function rng(seed){let s=seed>>>0;return()=>{s=(s+0x6D2B79F5)>>>0;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
@@ -448,11 +460,174 @@ function resize(){const w=window.innerWidth||document.documentElement.clientWidt
 const resizeSoon=()=>{resize();[120,400,900].forEach(t=>setTimeout(resize,t))};
 window.addEventListener('resize',resize);window.addEventListener('orientationchange',resizeSoon);document.addEventListener('fullscreenchange',resizeSoon);
 if(window.visualViewport)visualViewport.addEventListener('resize',resize);resize();
+/* ===== v18: Grafis HD ala UE4 untuk perangkat entry-level =====
+   0 = Mati (gaya lama) | 1 = HD (pencahayaan per-pixel, anti-aliasing, bloom, grading sinematik) | 2 = HD+ (ditambah bayangan senter)
+   Semua dibuat ringan: bloom di 1/4 resolusi, satu pass komposit, resolusi adaptif sudah ada. */
+const GX={q:HDQ,rt:null,b1:null,b2:null,w:0,h:0,fail:false,t:0,scan:0,nc:-1,sh:false,slow:0,fr:0,lite:false,fk:.58,nk:.7,ty:'',shl:0,env:null,hdr:false,ey:0,py:0,pp:0,mv:[0,0]};
+(function(){
+  const V='varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}';
+  const mk=(f,u)=>new THREE.ShaderMaterial({uniforms:u,vertexShader:V,fragmentShader:f,depthTest:false,depthWrite:false});
+  GX.cam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);GX.sc=new THREE.Scene();
+  GX.quad=new THREE.Mesh(new THREE.PlaneGeometry(2,2),null);GX.quad.frustumCulled=false;GX.sc.add(GX.quad);
+  GX.mBright=mk(`uniform sampler2D tD;uniform vec2 px;uniform float uTh;varying vec2 vUv;
+void main(){vec3 c=(texture2D(tD,vUv+px*vec2(-1.,-1.)).rgb+texture2D(tD,vUv+px*vec2(1.,-1.)).rgb+texture2D(tD,vUv+px*vec2(-1.,1.)).rgb+texture2D(tD,vUv+px*vec2(1.,1.)).rgb)*.25;
+float l=max(c.r,max(c.g,c.b));c*=smoothstep(uTh,uTh+.33,l);gl_FragColor=vec4(c,1.);}`,{tD:{value:null},px:{value:new THREE.Vector2()},uTh:{value:.62}});
+  GX.mBlur=mk(`uniform sampler2D tD;uniform vec2 dir;varying vec2 vUv;
+void main(){vec3 c=texture2D(tD,vUv).rgb*.227;
+c+=(texture2D(tD,vUv+dir*1.385).rgb+texture2D(tD,vUv-dir*1.385).rgb)*.316;
+c+=(texture2D(tD,vUv+dir*3.231).rgb+texture2D(tD,vUv-dir*3.231).rgb)*.07;gl_FragColor=vec4(c,1.);}`,{tD:{value:null},dir:{value:new THREE.Vector2()}});
+  GX.mComp=mk(`uniform sampler2D tD;uniform sampler2D tB;uniform sampler2D tA;uniform sampler2D tE;uniform vec2 px;uniform vec2 uMv;uniform float uT,uBl,uVig,uGr,uEx,uSat,uAsp,uU,uAO;varying vec2 vUv;
+float lum(vec3 c){return dot(c,vec3(.299,.587,.114));}
+float hash(vec2 p){p=fract(p*vec2(443.897,441.423));p+=dot(p,p.yx+19.19);return fract((p.x+p.y)*p.x);}
+void main(){
+ vec3 nw=texture2D(tD,vUv+vec2(-1.,-1.)*px).rgb,ne=texture2D(tD,vUv+vec2(1.,-1.)*px).rgb,sw=texture2D(tD,vUv+vec2(-1.,1.)*px).rgb,se=texture2D(tD,vUv+vec2(1.,1.)*px).rgb,m=texture2D(tD,vUv).rgb;
+ float lnw=lum(nw),lne=lum(ne),lsw=lum(sw),lse=lum(se),lm=lum(m);
+ float lmin=min(lm,min(min(lnw,lne),min(lsw,lse))),lmax=max(lm,max(max(lnw,lne),max(lsw,lse)));
+ vec2 d=vec2(-((lnw+lne)-(lsw+lse)),((lnw+lsw)-(lne+lse)));
+ float dr=max((lnw+lne+lsw+lse)*.03125,.0078125);float rc=1./(min(abs(d.x),abs(d.y))+dr);
+ d=clamp(d*rc,-8.,8.)*px;
+ vec3 a=.5*(texture2D(tD,vUv+d*(1./3.-.5)).rgb+texture2D(tD,vUv+d*(2./3.-.5)).rgb);
+ vec3 b=a*.5+.25*(texture2D(tD,vUv+d*-.5).rgb+texture2D(tD,vUv+d*.5).rgb);
+ float lb=lum(b);vec3 c=(lb<lmin||lb>lmax)?a:b;
+ float mvl=length(uMv);
+ if(uU>.5){
+  if(mvl>.0006){c=vec3(0.);for(int i=0;i<6;i++){c+=texture2D(tD,vUv+uMv*(float(i)/5.-.5)).rgb;}c/=6.;}
+  vec2 ca=(vUv-.5)*.0016;c.r=mix(c.r,texture2D(tD,vUv+ca).r,.7);c.b=mix(c.b,texture2D(tD,vUv-ca).b,.7);
+  c*=mix(1.,texture2D(tA,vUv).r,uAO);
+ }
+ c+=(c-(nw+ne+sw+se)*.25)*.32;
+ c+=texture2D(tB,vUv).rgb*uBl;
+ float ex=uEx;if(uU>.5)ex*=texture2D(tE,vec2(.5)).r*4.;
+ c*=ex;float l=lum(c);
+ c=mix(c,c*vec3(.90,1.,1.10),(1.-smoothstep(0.,.4,l))*.55);
+ c=mix(c,c*vec3(1.07,1.,.90),smoothstep(.35,.95,l)*.5);
+ if(uU>.5){c=max(c,0.);c=(c*(2.51*c+.03))/(c*(2.43*c+.59)+.14);}
+ else{c=clamp(c,0.,1.);c=mix(c,c*c*(3.-2.*c),.38);}
+ c=mix(vec3(lum(c)),c,uSat);
+ vec2 q=(vUv-.5)*vec2(uAsp,1.);c*=1.-uVig*smoothstep(.28,.95,length(q)*1.12);
+ c+=(hash(vUv*vec2(1013.,577.)+fract(uT)*91.)-.5)*uGr;
+ gl_FragColor=vec4(max(c,0.),1.);}`,{tD:{value:null},tB:{value:null},px:{value:new THREE.Vector2()},uT:{value:0},uBl:{value:.5},uVig:{value:.5},uGr:{value:.035},uEx:{value:1.08},uSat:{value:1.04},uAsp:{value:1.7},uU:{value:0},uAO:{value:.85},uMv:{value:new THREE.Vector2()},tA:{value:null},tE:{value:null}});
+  GX.mAO=mk(`uniform sampler2D tZ;uniform vec2 uPr;uniform float uN,uF,uR;varying vec2 vUv;
+float lz(vec2 uv){float d=texture2D(tZ,uv).x;return 2.*uN*uF/(uF+uN-(2.*d-1.)*(uF-uN));}
+void main(){float z=lz(vUv);if(z>40.){gl_FragColor=vec4(1.);return;}
+ float ig=fract(52.9829189*fract(dot(floor(gl_FragCoord.xy),vec2(.06711056,.00583715))));
+ float rot=floor(mod(gl_FragCoord.x,4.)+4.*mod(gl_FragCoord.y,4.))/16.*6.2831;
+ float rr=uR*uPr.y/z;float occ=0.;
+ for(int i=0;i<10;i++){float f=(float(i)+.5)/10.;float a=rot+float(i)*2.39996;float r=rr*(.2+.8*f);
+  vec2 o=vec2(cos(a),sin(a))*r*vec2(1./uPr.x,1.);float zs=lz(vUv+o);float df=z-zs;
+  occ+=(df>.04*z*.2+.02&&df<uR*2.)?(1.-df/(uR*2.)):0.;}
+ gl_FragColor=vec4(vec3(1.-occ/10.*1.6),1.);}`,{tZ:{value:null},uPr:{value:new THREE.Vector2(1.7,1)},uN:{value:.05},uF:{value:70},uR:{value:.55}});
+  GX.mAOB=mk(`uniform sampler2D tD;uniform vec2 px;varying vec2 vUv;
+void main(){float a=(texture2D(tD,vUv+px*vec2(-1.,-1.)).r+texture2D(tD,vUv+px*vec2(1.,-1.)).r+texture2D(tD,vUv+px*vec2(-1.,1.)).r+texture2D(tD,vUv+px*vec2(1.,1.)).r)*.25;gl_FragColor=vec4(vec3(clamp(a,0.,1.)),1.);}`,{tD:{value:null},px:{value:new THREE.Vector2()}});
+  GX.mEye=mk(`uniform sampler2D tD;uniform sampler2D tP;uniform float uDt;varying vec2 vUv;
+void main(){float s=0.,w=0.;for(int y=0;y<7;y++)for(int x=0;x<7;x++){vec2 g=(vec2(float(x),float(y))+.5)/7.;float k=1.-.6*length(g-.5)*1.4;s+=dot(texture2D(tD,g).rgb,vec3(.299,.587,.114))*k;w+=k;}
+ float avg=s/w;float tg=clamp(.13/max(avg,.002),.8,1.55);float p=texture2D(tP,vec2(.5)).r*4.;if(p<.05)p=1.;
+ float e=p+(tg-p)*(1.-exp(-uDt*1.2));gl_FragColor=vec4(e*.25,0.,0.,1.);}`,{tD:{value:null},tP:{value:null},uDt:{value:.016}});
+})();
+function gxSize(){
+  const v=new THREE.Vector2();renderer.getDrawingBufferSize(v);const w=Math.max(2,v.x|0),h=Math.max(2,v.y|0),u=GX.q>=3;
+  const hdr=u&&(renderer.capabilities.isWebGL2&&(renderer.extensions.has('EXT_color_buffer_float')||renderer.extensions.has('EXT_color_buffer_half_float')));
+  const key=w+'x'+h+(u?'u':'n')+(hdr?'h':'b');
+  if(GX.rt&&GX.ty===key)return;
+  GX.ty=key;GX.w=w;GX.h=h;GX.hdr=hdr;GX.uOK=u&&renderer.capabilities.isWebGL2;
+  const o={minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,stencilBuffer:false};
+  const ot=Object.assign({type:hdr?THREE.HalfFloatType:THREE.UnsignedByteType},o);
+  ['rt','b1','b2','a1','a2','e1','e2'].forEach(k=>{if(GX[k]){GX[k].dispose();GX[k]=null}});
+  GX.rt=new THREE.WebGLRenderTarget(w,h,Object.assign({depthBuffer:true},ot));
+  if(GX.uOK){GX.rt.depthTexture=new THREE.DepthTexture(w,h);GX.rt.depthTexture.type=THREE.UnsignedIntType;GX.rt.depthTexture.format=THREE.DepthFormat}
+  const bw=Math.max(2,w>>2),bh=Math.max(2,h>>2);
+  GX.b1=new THREE.WebGLRenderTarget(bw,bh,Object.assign({depthBuffer:false},ot));GX.b2=new THREE.WebGLRenderTarget(bw,bh,Object.assign({depthBuffer:false},ot));
+  if(GX.uOK){const aw=Math.max(2,w>>1),ah=Math.max(2,h>>1),oa=Object.assign({depthBuffer:false,type:THREE.UnsignedByteType},o);
+    GX.a1=new THREE.WebGLRenderTarget(aw,ah,oa);GX.a2=new THREE.WebGLRenderTarget(aw,ah,oa);
+    const oe=Object.assign({depthBuffer:false,type:hdr?THREE.HalfFloatType:THREE.UnsignedByteType},o);oe.minFilter=oe.magFilter=THREE.NearestFilter;
+    GX.e1=new THREE.WebGLRenderTarget(1,1,oe);GX.e2=new THREE.WebGLRenderTarget(1,1,oe)}
+}
+const hemi18=new THREE.HemisphereLight(0x8aa0c4,0x2b1d14,0);scene.add(hemi18);
+function gxLvl(){return GX.fail?0:((typeof SET17!=='undefined'&&SET17.hd!==undefined)?SET17.hd|0:HDQ)}
+/* bayangan senter (HD+) */
+function gxShadowFlags(on){
+  const walk=n=>{if(n===camera)return;
+    if(n.isMesh&&n.material&&!Array.isArray(n.material)){const m=n.material,ok=(m.isMeshPhongMaterial||m.isMeshLambertMaterial)&&!m.transparent&&!n.isSprite,wind=m.customProgramCacheKey&&/^wind_/.test(m.customProgramCacheKey());
+      const c=on&&ok&&!wind&&!(typeof GRASSL!=='undefined'&&GRASSL.indexOf(n)>=0),r=on&&ok;
+      if(n.castShadow!==c||n.receiveShadow!==r){n.castShadow=c;n.receiveShadow=r}}
+    for(let i=0;i<n.children.length;i++)walk(n.children[i])};
+  walk(scene);
+}
+function gxShadowSet(on,soft){
+  const sl=soft?2:1;if(on===GX.sh&&(!on||sl===GX.shl))return;GX.sh=on;GX.shl=sl;
+  renderer.shadowMap.enabled=on;renderer.shadowMap.type=soft?THREE.PCFSoftShadowMap:THREE.PCFShadowMap;
+  flash.castShadow=on;if(on){flash.shadow.mapSize.set(soft?768:512,soft?768:512);if(flash.shadow.map){flash.shadow.map.dispose();flash.shadow.map=null}flash.shadow.camera.near=.15;flash.shadow.camera.far=24;flash.shadow.bias=-.0007;flash.shadow.normalBias=.03}
+  gxShadowFlags(on);
+  scene.traverse(n=>{if(n.material&&!Array.isArray(n.material))n.material.needsUpdate=true});
+}
+function gxEnv(){
+  if(GX.env||GX.envFail||!THREE.PMREMGenerator)return;
+  try{const es=new THREE.Scene();
+    es.add(new THREE.Mesh(new THREE.SphereGeometry(10,24,12),new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,vertexShader:'varying vec3 vP;void main(){vP=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'varying vec3 vP;void main(){vec3 d=normalize(vP);float h=d.y*.5+.5;vec3 c=mix(vec3(.02,.025,.03),vec3(.07,.09,.14),smoothstep(.3,1.,h));c+=vec3(.9,.95,1.)*pow(max(dot(d,normalize(vec3(.4,.55,-.5))),0.),220.)*1.5;gl_FragColor=vec4(c,1.);}'})));
+    const pm=new THREE.PMREMGenerator(renderer);GX.env=pm.fromScene(es,0,.1,100).texture;pm.dispose();
+    scene.environment=GX.env;scene.traverse(n=>{if(n.material&&!Array.isArray(n.material))n.material.needsUpdate=true})}
+  catch(e){GX.envFail=true;window.__mcErr&&window.__mcErr(e)}
+}
+function gxApply(){
+  const l=gxLvl();GX.q=l;hemi18.intensity=l>=1?.1:0;
+  try{gxShadowSet(l>=2&&!GX.lite,l>=3);if(l>=3)gxEnv()}catch(e){GX.sh=false;window.__mcErr&&window.__mcErr(e)}
+  renderer.domElement.style.imageRendering='auto';
+}
+const _rr18=renderer.render.bind(renderer);
+renderer.render=function(sc,cam){
+  const l=gxLvl();
+  if(sc!==scene||l<1){if(GX.rt)renderer.setRenderTarget(null);return _rr18(sc,cam)}
+  try{
+    if(GX.q!==l){GX.q=l;gxApply()}
+    if(GX.sh&&(++GX.scan>=60||scene.children.length!==GX.nc)){GX.scan=0;GX.nc=scene.children.length;gxShadowFlags(true)}
+    gxSize();const U=GX.mComp.uniforms,w=GX.w,h=GX.h,u=GX.q>=3&&GX.uOK&&!GX.lite;
+    const fi=flash.intensity,ni=nearL.intensity;flash.intensity=fi*(u?.9:GX.fk);nearL.intensity=ni*(u?.9:GX.nk);
+    renderer.setRenderTarget(GX.rt);try{_rr18(sc,cam)}finally{flash.intensity=fi;nearL.intensity=ni}
+    const bl=!GX.lite;
+    if(u){ /* SSAO setengah resolusi */
+      const M=GX.mAO.uniforms;M.tZ.value=GX.rt.depthTexture;M.uN.value=cam.near;M.uF.value=cam.far;
+      M.uPr.value.set(cam.aspect,.5/Math.tan(cam.fov*Math.PI/360));
+      GX.quad.material=GX.mAO;renderer.setRenderTarget(GX.a1);_rr18(GX.sc,GX.cam);
+      GX.quad.material=GX.mAOB;GX.mAOB.uniforms.tD.value=GX.a1.texture;GX.mAOB.uniforms.px.value.set(1/GX.a1.width,1/GX.a1.height);
+      renderer.setRenderTarget(GX.a2);_rr18(GX.sc,GX.cam);
+      /* adaptasi mata (eksposur otomatis) */
+      const E=GX.mEye.uniforms;E.tD.value=GX.rt.texture;E.tP.value=GX.e1.texture;E.uDt.value=Math.min(.1,Math.max(.005,(performance.now()-(GX.et||performance.now()))/1000));GX.et=performance.now();
+      GX.quad.material=GX.mEye;renderer.setRenderTarget(GX.e2);_rr18(GX.sc,GX.cam);const t=GX.e1;GX.e1=GX.e2;GX.e2=t;
+      /* motion blur kamera */
+      const yw=(typeof S!=='undefined'?S.yaw:0),pt=(typeof S!=='undefined'?S.pitch:0);
+      let dy=yw-GX.py,dp=pt-GX.pp;GX.py=yw;GX.pp=pt;dy=Math.atan2(Math.sin(dy),Math.cos(dy));
+      const k=.55/(cam.fov*Math.PI/180),mx=Math.max(-.012,Math.min(.012,dy*k*.5)),my=Math.max(-.012,Math.min(.012,-dp*k*.5));
+      GX.mv[0]+=(mx-GX.mv[0])*.5;GX.mv[1]+=(my-GX.mv[1])*.5;U.uMv.value.set(-GX.mv[0],-GX.mv[1]);
+    }
+    if(bl){
+      GX.quad.material=GX.mBright;GX.mBright.uniforms.tD.value=GX.rt.texture;GX.mBright.uniforms.px.value.set(1/w,1/h);GX.mBright.uniforms.uTh.value=GX.hdr?.8:.62;
+      renderer.setRenderTarget(GX.b1);_rr18(GX.sc,GX.cam);
+      GX.quad.material=GX.mBlur;const bw=GX.b1.width,bh=GX.b1.height;
+      GX.mBlur.uniforms.tD.value=GX.b1.texture;GX.mBlur.uniforms.dir.value.set(1/bw,0);renderer.setRenderTarget(GX.b2);_rr18(GX.sc,GX.cam);
+      GX.mBlur.uniforms.tD.value=GX.b2.texture;GX.mBlur.uniforms.dir.value.set(0,1/bh);renderer.setRenderTarget(GX.b1);_rr18(GX.sc,GX.cam);
+    }
+    GX.quad.material=GX.mComp;U.tD.value=GX.rt.texture;U.tB.value=GX.b1.texture;U.px.value.set(1/w,1/h);U.uAsp.value=w/h;
+    U.uU.value=u?1:0;U.tA.value=u?GX.a2.texture:null;U.tE.value=u?GX.e1.texture:null;U.uEx.value=u?1.3:1.08;U.uSat.value=u?1.1:1.04;
+    if(!u)U.uMv.value.set(0,0);
+    U.uT.value=(GX.t+=.016);U.uBl.value=bl?(GX.hdr?.7:.55):0;
+    renderer.setRenderTarget(null);_rr18(GX.sc,GX.cam);
+  }catch(e){GX.fail=true;try{renderer.setRenderTarget(null)}catch(_){}window.__mcErr&&window.__mcErr(e);_rr18(sc,cam)}
+};
+/* penjaga performa: kalau masih berat, matikan bloom lalu bayangan */
+function gxPerf(now){
+  if(typeof S==='undefined'||!S.on||S.paused||(typeof CIN!=='undefined'&&CIN.on)){GX.pl=now;return}
+  if(GX.pl){const d=now-GX.pl;if(d<200){GX.sum=(GX.sum||0)+d;GX.n=(GX.n||0)+1}}GX.pl=now;
+  if((GX.n||0)<90)return;const avg=GX.sum/GX.n;GX.sum=0;GX.n=0;
+  const low=typeof AR!=='undefined'&&AR.s<=.6;
+  if(avg>34&&low){if(GX.sh){GX.lite=true;gxApply();try{toast('HD+ dimatikan otomatis agar lancar')}catch(e){}}else if(!GX.lite){GX.lite=true;try{toast('Bloom dimatikan otomatis agar lancar')}catch(e){}}}
+}
+
 
 function mkTex(base,seed,kind){
-  const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d'),R=rng(seed);
+  const c=document.createElement('canvas');c.width=c.height=HDQ>=1?256:128;const g=c.getContext('2d'),R=rng(seed);if(HDQ>=1)g.scale(2,2);
   g.fillStyle=base;g.fillRect(0,0,128,128);
   for(let i=0;i<700;i++){const d=R()<.5;g.fillStyle=d?`rgba(0,0,0,${R()*.12})`:`rgba(255,255,255,${R()*.06})`;g.fillRect(R()*128,R()*128,1+R()*4,1+R()*4)}
+  if(HDQ>=1)for(let i=0;i<2600;i++){g.fillStyle=R()<.5?`rgba(0,0,0,${.05+R()*.12})`:`rgba(255,255,255,${.02+R()*.06})`;g.fillRect(R()*128,R()*128,.5,.5+R()*1.2)}
   if(kind==='wall'){
     for(let i=0;i<6;i++){const x=R()*128;g.fillStyle=`rgba(0,0,0,${.08+R()*.1})`;g.fillRect(x,0,2+R()*5,40+R()*88)}
     g.fillStyle='rgba(120,12,10,.35)';const x=R()*100;g.fillRect(x,30,3,60);g.fillRect(x-6,60,15,3);
@@ -477,7 +652,7 @@ function buildLevel(map,seed){
   const W=GW*CELL,H=GH*CELL;
   // lantai & langit-langit
   const ft=mkTex(map.floor,seed+1,'floor');ft.repeat.set(GW/2,GH/2);
-  const fw=FLEV?(FP.x1-FP.x0+1)*CELL:W,fh=FLEV?(FP.y1-FP.y0+1)*CELL:H;if(FLEV)ft.repeat.set(fw/CELL/2,fh/CELL/2);const fl=new THREE.Mesh(new THREE.PlaneGeometry(fw,fh),mat(0xffffff,{map:ft}));fl.rotation.x=-Math.PI/2;fl.position.set(FLEV?(FP.x0+FP.x1+1)*CELL/2:W/2,0,FLEV?(FP.y0+FP.y1+1)*CELL/2:H/2);fl.userData.isFloor=true;group.add(fl);
+  const fw=FLEV?(FP.x1-FP.x0+1)*CELL:W,fh=FLEV?(FP.y1-FP.y0+1)*CELL:H;if(FLEV)ft.repeat.set(fw/CELL/2,fh/CELL/2);const fl=new THREE.Mesh(new THREE.PlaneGeometry(fw,fh),mat(0xffffff,{map:ft}));fl.rotation.x=-Math.PI/2;if(fl.material.roughness!==undefined){fl.material.roughness=.38;fl.material.metalness=.06}fl.position.set(FLEV?(FP.x0+FP.x1+1)*CELL/2:W/2,0,FLEV?(FP.y0+FP.y1+1)*CELL/2:H/2);fl.userData.isFloor=true;group.add(fl);
   const ct=mkTex(map.ceil,seed+2,'floor');ct.repeat.set(GW/3,GH/3);
   const ce=new THREE.Mesh(new THREE.PlaneGeometry((FP.x1-FP.x0+1)*CELL,(FP.y1-FP.y0+1)*CELL),mat(0xffffff,{map:ct}));ce.rotation.x=Math.PI/2;ce.position.set((FP.x0+FP.x1+1)*CELL/2,WALLH,(FP.y0+FP.y1+1)*CELL/2);ce.userData.isCeil=true;group.add(ce);
   // dinding (instanced, hanya yang menghadap lantai)
@@ -2201,7 +2376,7 @@ function loop(now){
   if(nextFrameAt===0)nextFrameAt=now;
   if(now<nextFrameAt-1.5)return;
   nextFrameAt+=FRAME_MS;if(now-nextFrameAt>FRAME_MS*2)nextFrameAt=now+FRAME_MS;
-  try{adaptRes(now)}catch(e){}
+  try{adaptRes(now)}catch(e){}try{gxPerf(now)}catch(e){}
   try{if(innerWidth!==RW||innerHeight!==RH)resize();loopBody(now)}catch(e){window.__mcErr(e);if(++LOOPERR===1)try{toast('Terjadi kesalahan kecil, game tetap jalan')}catch(_){}}
 }
 function loopBody(now){
@@ -4107,14 +4282,14 @@ function gunPose19(dt){
 }
 
 /* ===== v17e: menu jeda + pengaturan ===== */
-const SET17=Object.assign({vol:1,mute:false,q:2,grass:true,part:true,mist:true,wind:true,bright:1,sens:1},(()=>{try{return JSON.parse(localStorage.getItem('mc_set')||'{}')||{}}catch(e){return{}}})());
+const SET17=Object.assign({vol:1,mute:false,q:2,hd:1,grass:true,part:true,mist:true,wind:true,bright:1,sens:1},(()=>{try{return JSON.parse(localStorage.getItem('mc_set')||'{}')||{}}catch(e){return{}}})());
 const saveSet17=()=>{try{localStorage.setItem('mc_set',JSON.stringify(SET17))}catch(e){}};
 const GRASSL=[],MISTL=[];
 function applySet17(){
   const dpr=window.devicePixelRatio||1,pr=[.7,1,Math.min(dpr,1.5)][SET17.q|0]||1;
   try{renderer.setPixelRatio(Math.max(.5,pr));resize()}catch(e){}
   if(window.MASTER17)MASTER17.gain.value=SET17.mute?0:Math.max(0,Math.min(1.5,SET17.vol));
-  GRASSL.forEach(m=>m.visible=!!SET17.grass);MISTL.forEach(m=>m.visible=!!SET17.mist);
+  GRASSL.forEach(m=>m.visible=!!SET17.grass);MISTL.forEach(m=>m.visible=!!SET17.mist);try{gxApply()}catch(e){}
   const cv=renderer.domElement;cv.style.filter=Math.abs(SET17.bright-1)>.01?'brightness('+SET17.bright+')':'';
 }
 function pauseOpen17(){
