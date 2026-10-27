@@ -442,7 +442,7 @@ function planLevel(map,seed){
 /* ===== Three.js: renderer, lampu, tekstur ===== */
 const canvas=$('c');
 const renderer=(function(){try{return new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:'high-performance'})}catch(e1){try{return new THREE.WebGLRenderer({canvas,antialias:false})}catch(e2){e2.message='WebGL tidak bisa dibuat: '+(e2.message||'');throw e2}}})();
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,.8));
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(72,1,.05,70);
 camera.rotation.order='YXZ';
@@ -4289,7 +4289,7 @@ Object.assign(SET17,{q:2,hd:3,grass:true,part:true,mist:true,wind:true});/* graf
 const saveSet17=()=>{try{localStorage.setItem('mc_set',JSON.stringify(SET17))}catch(e){}};
 const GRASSL=[],MISTL=[];
 function applySet17(){
-  const dpr=window.devicePixelRatio||1,pr=[.7,1,Math.min(dpr,2)][SET17.q|0]||1;
+  const dpr=window.devicePixelRatio||1,pr=[.5,.65,Math.min(dpr,.8)][SET17.q|0]||.8;
   try{renderer.setPixelRatio(Math.max(.5,pr));resize()}catch(e){}
   if(window.MASTER17)MASTER17.gain.value=SET17.mute?0:Math.max(0,Math.min(1.5,SET17.vol));
   GRASSL.forEach(m=>m.visible=!!SET17.grass);MISTL.forEach(m=>m.visible=!!SET17.mist);try{gxApply()}catch(e){}
@@ -6020,7 +6020,7 @@ vanSync=function(){_vs();const V0=VAN;if(!V0)return;
 
 /* ===== v24: resolusi adaptif — otomatis turun saat berat, naik lagi saat stabil ===== */
 const AR={s:1,last:0,sum:0,n:0,ok:0,cool:0,wait:6};
-function arBase(){const dpr=window.devicePixelRatio||1;return [.7,1,Math.min(dpr,2)][SET17.q|0]||1}
+function arBase(){const dpr=window.devicePixelRatio||1;return [.5,.65,Math.min(dpr,.8)][SET17.q|0]||.8}
 function arApply(){try{renderer.setPixelRatio(Math.max(.5,arBase()*AR.s));resize()}catch(e){}}
 const _as17=applySet17;
 applySet17=function(){_as17.apply(this,arguments);arApply()};
