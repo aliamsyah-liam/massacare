@@ -2521,13 +2521,18 @@ function activePeers(){
 function mpRemotes(){
   return activePeers().filter(p=>!p.sameTab&&!p.isMe&&num(p.presence.x)&&num(p.presence.z)).map(p=>({id:p.peer,x:p.presence.x,z:p.presence.z,hid:!!p.presence.h,run:!!p.presence.r,flash:!!p.presence.f&&!p.presence.h,dead:!!p.presence.d||!!p.presence.e,fl:p.presence.fl|0}));
 }
+const MP_BUILD='m2';
 function mpFrame(dt){
   chatPoll();
   if(!MP.room)return;
   const all=MP.room.peers(),me=all.find(p=>p.sameTab);if(me)MP.myPeer=me.peer;
   const act=activePeers();
+  /* diagnosa: teman ada di room tapi datanya tidak masuk (versi game/server berbeda) */
+  {const others=all.filter(p=>!p.sameTab&&!p.isMe),got=act.filter(p=>!p.sameTab&&!p.isMe);
+   if(others.length&&!got.length){MP.dg=(MP.dg||0)+dt;if(MP.dg>5&&!MP.dgT){MP.dgT=1;toast('Teman sudah masuk room tapi datanya belum diterima. Pastikan SEMUA perangkat memakai game build '+MP_BUILD+' dan server terbaru.')}}else MP.dg=0;
+   const old=got.find(p=>p.presence.bv!==MP_BUILD);if(old&&!MP.bvT&&S.t>3){MP.bvT=1;toast('Versi game temanmu berbeda ('+(old.presence.bv||'lama')+'). Perbarui agar saling terlihat.')}}
   MP.isHost=!act.length||act[0].sameTab;
-  $('peers').textContent='Room '+MP.code+' · '+Math.max(1,act.length)+' pemain';
+  $('peers').textContent='Room '+MP.code+' · '+Math.max(1,act.length)+' pemain · '+MP_BUILD;
   if(!MP.isHost){
     [[MON,act[0].presence.m],[MON2,act[0].presence.m2]].forEach(a=>{
       const E=a[0],m=a[1];
@@ -2558,7 +2563,7 @@ function mpFrame(dt){
   if(MP.push<=0){
     MP.push=.1;
     MP.caught=MP.caught.filter(c=>S.t-c.t<2.5);
-    const p={g:1,x:+S.x.toFixed(2),z:+S.z.toFixed(2),ry:+S.yaw.toFixed(2),h:S.hid?1:0,r:S.running?1:0,f:(S.flash&&!S.hid)?1:0,d:S.dead?1:0,e:S.esc?1:0,i:Array.from(S.got),q:Array.from(S.qs||[]),qn:(QM.qn&&S.t<QM.qnT)?QM.qn:null,py:+S.pitch.toFixed(2),fl:S.f|0,lb:null,n:PROF.n,c:PROF.c,ac:S.ac|0,ct:[CT.seq].concat(CT.out),w:Array.from(S.wgot||[]).slice(-60),gs:S.gs||null,sh:S.sh||null,dp:(S.dp&&S.dp.length)?S.dp:null};
+    const p={g:1,bv:MP_BUILD,x:+S.x.toFixed(2),z:+S.z.toFixed(2),ry:+S.yaw.toFixed(2),h:S.hid?1:0,r:S.running?1:0,f:(S.flash&&!S.hid)?1:0,d:S.dead?1:0,e:S.esc?1:0,i:Array.from(S.got),q:Array.from(S.qs||[]),qn:(QM.qn&&S.t<QM.qnT)?QM.qn:null,py:+S.pitch.toFixed(2),fl:S.f|0,lb:null,n:PROF.n,c:PROF.c,ac:S.ac|0,ct:[CT.seq].concat(CT.out),w:Array.from(S.wgot||[]).slice(-60),gs:S.gs||null,sh:S.sh||null,dp:(S.dp&&S.dp.length)?S.dp:null};
     if(MP.isHost){p.m=[+MON.x.toFixed(2),+MON.z.toFixed(2),+MON.ry.toFixed(2),MON.st[0],MON.f|0,Math.ceil(MON.stun||0),+(MON.yR||0).toFixed(2)];p.m2=[+MON2.x.toFixed(2),+MON2.z.toFixed(2),+MON2.ry.toFixed(2),MON2.st[0],MON2.f|0,Math.ceil(MON2.stun||0),+(MON2.yR||0).toFixed(2)];p.k=MP.caught.map(c=>c.id)}
     else{p.m=null;p.m2=null;p.k=null}
     MP.room.presence(p).catch(()=>{});
@@ -2652,6 +2657,8 @@ function wsProvider(url){
   return{join:(name,create)=>new Promise((res,rej)=>{
     const st={peers:[],me:null,pres:{},open:false,left:false,assets:{},fc:null,ws:null,tries:0,first:true,k:false,rx:0};let done=false,rt=null,hb=null,chk=null;
     const send=o=>{if(st.ws&&st.ws.readyState===1)try{st.ws.send(JSON.stringify(o))}catch(e){}};
+    /* server menolak update dengan >24 kunci (diam-diam) -> kirim presence dalam potongan <=14 kunci */
+    const sendP=d=>{const ks=Object.keys(d);for(let i=0;i<ks.length;i+=12){const c={};for(const k of ks.slice(i,i+12))c[k]=d[k];send({t:'p',d:c})}};
     const fail=m=>{if(done)return;done=true;clearTimeout(to);st.left=true;clearInterval(hb);try{st.ws&&st.ws.close()}catch(e){}rej(new Error(m))};
     let to=setTimeout(()=>fail(st.nr?'noroom':'timeout'),create?15000:30000);
     const reset=()=>{const o=st.ws;st.ws=null;st.open=false;try{o&&o.close()}catch(e){}connect()};
@@ -2662,7 +2669,7 @@ function wsProvider(url){
     };
     const vis=()=>{if(!document.hidden)wake()};
     const api={
-      presence(o){for(const k in o){if(o[k]===null)delete st.pres[k];else st.pres[k]=o[k]}if(st.open)send({t:'p',d:o});return Promise.resolve()},
+      presence(o){for(const k in o){if(o[k]===null)delete st.pres[k];else st.pres[k]=o[k]}if(st.open)sendP(o);return Promise.resolve()},
       peers(){
         const out=[];
         for(const p of st.peers)if(p.peer!==st.me)out.push({peer:p.peer,kind:'viewer',presence:p.presence||{},sameTab:false,isMe:false});
@@ -2684,7 +2691,7 @@ function wsProvider(url){
         let m;try{m=JSON.parse(ev.data)}catch(e){return}
         if(m.t==='welcome'){
           const again=!st.first;st.me=m.id;st.open=true;st.tries=0;st.first=false;
-          if(Object.keys(st.pres).length)send({t:'p',d:st.pres});if(st.fc)send({t:'a',fc:st.fc});
+          if(Object.keys(st.pres).length)sendP(st.pres);if(st.fc)send({t:'a',fc:st.fc});
           if(!done){done=true;clearTimeout(to);res(api)}else if(again){try{toast('Tersambung kembali')}catch(e){}}
         }else if(m.t==='k')st.k=true;
         else if(m.t==='noroom'){st.nr=(st.nr||0)+1;try{if(typeof showJoinWait==='function')showJoinWait(st.nr)}catch(e){}}
