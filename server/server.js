@@ -8,7 +8,7 @@
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const PORT = +process.env.PORT || 8080;
 const STATIC = process.env.STATIC_DIR || path.join(__dirname, '..', 'www');
-const MAX_PEERS = 8, MAX_FRAME = 16 * 1024, ROOM_RE = /^mc-[a-z0-9]{6}$/;
+const MAX_PEERS = 8, MAX_FRAME = 32 * 1024, ROOM_RE = /^mc-[a-z0-9]{6}$/;
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.json': 'application/json' };
 
 const server = http.createServer((req, res) => {
@@ -96,7 +96,7 @@ class Conn {
       for (const c of this.room.peers.values()) if (c !== this) c.send(msg);
     } else if (m.t === 'p' && this.room && m.d && typeof m.d === 'object' && !Array.isArray(m.d)) {
       const ks = Object.keys(m.d);
-      if (ks.length > 24) return;
+      if (ks.length > 60) return; /* v2: batas dinaikkan (game baru mengirim >24 kunci) */
       const next = Object.assign({}, this.presence);
       for (const k of ks) {
         if (k.length > 12) continue;
@@ -104,7 +104,7 @@ class Conn {
         if (v === null) delete next[k];
         else { const js = JSON.stringify(v); if (js && js.length <= 1500) next[k] = v; }
       }
-      if (JSON.stringify(next).length > 6000) return;
+      if (JSON.stringify(next).length > 12000) return;
       this.presence = next; this.room.dirty = true;
     }
   }
