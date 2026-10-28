@@ -147,6 +147,23 @@ input.code.nick{width:190px;letter-spacing:.05em;text-transform:none}
 @keyframes paneIn{from{opacity:0;transform:scale(.9) translateY(14px);filter:blur(5px)}to{opacity:1;transform:none;filter:none}}
 @media (max-height:440px){.box{gap:5px;padding:6px 10px}.stack{flex-direction:row;width:auto;flex-wrap:wrap;justify-content:center}.stack .btn{width:auto}#menu .pane{gap:8px}}
 @media (prefers-reduced-motion:reduce){#menu .pane,.tap{animation:none!important}}
+
+/* v27: HUD kustom, analog tetap, editor posisi */
+#joy{left:calc(max(24px,env(safe-area-inset-left,0px)) + var(--jx,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px) + var(--jy,0px));transform:scale(var(--js,1));opacity:calc(.45*var(--ho,1))}
+#joy.act{opacity:1}
+#joy::before{content:"";position:absolute;inset:14px;border-radius:50%;border:1px dashed var(--line)}
+#joy i{box-shadow:0 0 0 2px rgba(255,255,255,.18),0 2px 8px rgba(0,0,0,.5)}
+.hb[data-e]{transform:translate(var(--x,0px),var(--y,0px)) scale(calc(var(--s,1)*var(--bs,1)))}
+.hb{opacity:var(--ho,1)}
+#hedit{position:fixed;inset:0;z-index:31;display:none;align-items:flex-start;justify-content:center;background:rgba(0,0,0,.3);touch-action:none}
+#hedit .bar{margin-top:calc(10px + env(safe-area-inset-top,0px));display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;background:var(--panel);border:1px solid var(--ember);padding:6px 10px;font:600 14px var(--ui)}
+#hedit .btn{padding:7px 14px;font-size:15px}
+body.hedit #joy{opacity:1}
+body.hedit #joy,body.hedit .hb[data-e]{outline:2px dashed var(--ember);outline-offset:4px}
+body.hedit .sel{outline:3px solid #fff!important}
+body.hedit #gunPad,body.hedit #gunPad .hb,body.hedit #bGun{display:flex!important}
+#hedit input[type=range]{width:110px}
+.pr .tg{padding:6px 10px;min-height:34px}
 </style>
 <canvas id="c"></canvas>
 <div id="vig"></div><div id="danger"></div><div id="fade" style="position:fixed;top:0;right:0;bottom:0;left:0;z-index:12;background:#000;opacity:0;pointer-events:none"></div>
@@ -235,12 +252,23 @@ input.code.nick{width:190px;letter-spacing:.05em;text-transform:none}
     <div class="pg"><h4>Suara</h4>
       <div class="pr"><b>Volume</b><input type="range" min="0" max="100" data-s="vol"><span data-o></span><button class="tg" data-s="mute">Bisu</button></div></div>
     <div class="pg"><h4>Grafik</h4>
+      <div class="pr"><b>Preset</b><button class="tg" data-pre="0">Hemat</button><button class="tg" data-pre="1">Sedang</button><button class="tg" data-pre="2">Tinggi</button><button class="tg" data-pre="3">Ultra</button></div>
+      <div class="pr"><b>Resolusi</b><button class="tg" data-s="q" data-v="0">50%</button><button class="tg" data-s="q" data-v="1">65%</button><button class="tg" data-s="q" data-v="2">80%</button><button class="tg" data-s="q" data-v="3">Penuh</button></div>
+      <div class="pr"><b>Efek</b><button class="tg" data-s="gl" data-v="0">Mati</button><button class="tg" data-s="gl" data-v="1">HD</button><button class="tg" data-s="gl" data-v="2">+Bayangan</button><button class="tg" data-s="gl" data-v="3">UE4</button></div>
+      <div class="pr"><b>Detail</b><button class="tg" data-s="grass">Rumput</button><button class="tg" data-s="mist">Kabut</button></div>
       <div class="pr"><b>Kecerahan</b><input type="range" min="70" max="150" data-s="bright"><span data-o></span></div></div>
     <div class="pg"><h4>Kontrol</h4>
-      <div class="pr"><b>Sensitivitas</b><input type="range" min="40" max="220" data-s="sens"><span data-o></span></div></div>
+      <div class="pr"><b>Sensitivitas</b><input type="range" min="40" max="220" data-s="sens"><span data-o></span></div>
+      <div class="pr"><b>Analog</b><button class="tg" data-s="jm" data-v="0">Melayang</button><button class="tg" data-s="jm" data-v="1">Tetap di pojok</button></div></div>
+    <div class="pg"><h4>HUD kustom</h4>
+      <div class="pr"><b>Ukuran analog</b><input type="range" min="60" max="160" data-s="js"><span data-o></span></div>
+      <div class="pr"><b>Ukuran tombol</b><input type="range" min="60" max="160" data-s="bs"><span data-o></span></div>
+      <div class="pr"><b>Transparansi</b><input type="range" min="30" max="100" data-s="ho"><span data-o></span></div>
+      <div class="pr"><button class="tg" id="pHud">Atur posisi</button><button class="tg" id="pHudR">Reset HUD</button></div></div>
   </div>
   <div class="row"><button class="btn main" id="pGo">Lanjutkan</button><button class="btn" id="pExit">Keluar dari Game</button><button class="btn" id="pQuit" style="display:none">Tutup Aplikasi</button></div>
 </div>
+<div id="hedit"><div class="bar"><span>Seret tiap tombol sesukamu. Ketuk satu tombol untuk atur ukurannya</span><span id="heS" style="display:flex;gap:6px;align-items:center">Ukuran <input type="range" id="heSz" min="50" max="180"></span><button class="btn" id="heR">Reset</button><button class="btn main" id="heOk">Selesai</button></div></div>
 <div class="scr" id="cust" style="display:none">
   <button class="back" id="bBackC" aria-label="Kembali ke menu utama" style="display:flex"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5 8 12l7 7"/></svg></button>
   <p class="sub">Desain karakter</p>
@@ -539,7 +567,7 @@ function gxSize(){
     GX.e1=new THREE.WebGLRenderTarget(1,1,oe);GX.e2=new THREE.WebGLRenderTarget(1,1,oe)}
 }
 const hemi18=new THREE.HemisphereLight(0x8aa0c4,0x2b1d14,0);scene.add(hemi18);
-function gxLvl(){return GX.fail?0:3}
+function gxLvl(){if(GX.fail)return 0;try{const v=SET17.gl;return v==null?3:Math.max(0,Math.min(3,v|0))}catch(e){return 3}}
 /* bayangan senter (HD+) */
 function gxShadowFlags(on){
   const walk=n=>{if(n===camera)return;
@@ -713,12 +741,27 @@ function buildLevel(map,seed){
 
 /* ===== Model manusia / entitas ===== */
 function humanoid(o){
-  const g=new THREE.Group(),m=c=>mat(c);
-  const torso=new THREE.Mesh(new THREE.BoxGeometry(.5,.72,.28),m(o.body));torso.position.y=1.15;g.add(torso);
-  const head=new THREE.Mesh(new THREE.SphereGeometry(.18,10,8),m(o.head));head.position.y=1.72;g.add(head);
-  const limb=(w,h,x,y,col)=>{const p=new THREE.Group();p.position.set(x,y,0);const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,w),m(col));b.position.y=-h/2;p.add(b);g.add(p);return p};
-  const aL=limb(.12,o.arm||.62,-.34,1.46,o.body),aR=limb(.12,o.arm||.62,.34,1.46,o.body);
-  const lL=limb(.17,.82,-.13,.82,o.legs||o.body),lR=limb(.17,.82,.13,.82,o.legs||o.body);
+  const g=new THREE.Group(),m=c=>mat(c),al=o.arm||.62,sk=o.head,bd=o.body,lg=o.legs||o.body;
+  const cyl=(rt,rb,h,c,n)=>new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,n||14),m(c));
+  const sph=(r,c)=>new THREE.Mesh(new THREE.SphereGeometry(r,14,10),m(c));
+  const torso=new THREE.Group();torso.position.y=1.15;g.add(torso);
+  const ch=cyl(.25,.21,.48,bd,18);ch.scale.z=.55;ch.position.y=.13;torso.add(ch);
+  const ws=cyl(.21,.2,.34,bd,18);ws.scale.z=.6;ws.position.y=-.2;torso.add(ws);
+  const hip=cyl(.2,.2,.14,lg,16);hip.scale.z=.62;hip.position.y=-.4;torso.add(hip);
+  const nk=cyl(.06,.065,.14,sk,10);nk.position.y=1.56;g.add(nk);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.18,18,14),m(sk));head.position.y=1.72;g.add(head);
+  for(const sx of[-1,1]){const e=sph(.035,sk);e.scale.set(.6,1,1);e.position.set(sx*.178,-.01,0);head.add(e);const sh=sph(.088,bd);sh.position.set(sx*.34,1.46,0);g.add(sh)}
+  const limb=(x,y)=>{const p=new THREE.Group();p.position.set(x,y,0);
+    const u1=cyl(.062,.052,al*.5,bd,10);u1.position.y=-al*.25;p.add(u1);
+    const el=sph(.053,bd);el.position.y=-al*.5;p.add(el);
+    const u2=cyl(.052,.042,al*.5,bd,10);u2.position.y=-al*.75;p.add(u2);
+    const h=sph(.058,sk);h.scale.set(1,1.15,.8);h.position.y=-al-.01;p.add(h);g.add(p);return p};
+  const leg=x=>{const p=new THREE.Group();p.position.set(x,.82,0);
+    const t=cyl(.098,.075,.42,lg,12);t.position.y=-.21;p.add(t);
+    const kn=sph(.072,lg);kn.position.y=-.42;p.add(kn);
+    const sn=cyl(.074,.058,.4,lg,12);sn.position.y=-.62;p.add(sn);
+    B(p,.13,.085,.27,o.shoe||0x141416,0,-.78,.05);g.add(p);return p};
+  const aL=limb(-.34,1.46),aR=limb(.34,1.46),lL=leg(-.115),lR=leg(.115);
   g.userData={aL,aR,lL,lR,head,torso};g.scale.setScalar((o.height||1.8)/1.8);return g;
 }
 function makeMonster(){
@@ -740,6 +783,14 @@ function makeMonster(){
   const hood=new THREE.Mesh(new THREE.TorusGeometry(.17,.06,6,12),mat(0xe0e0dc));hood.rotation.x=Math.PI/2;hood.position.set(0,1.52,-.02);g.add(hood);
   B(g,.14,.2,.012,0x6a0c0c,-.1,1.2,.145);B(g,.08,.28,.012,0x6a0c0c,.12,1.05,.145);B(g,.2,.06,.012,0x6a0c0c,0,1.35,.145);
   B(u.aR,.02,.1,.42,0xcfd3d6,0,-.82,.28);B(u.aR,.035,.05,.16,0x111111,0,-.82,.04);
+  /* v27: detail psikopat — gigi bergerigi, urat mata, saku hoodie, tali, lengan berdarah, kulit gosong */
+  for(let i=-3;i<=3;i++)B(hd,.018,.024,.012,0xf4f4ee,i*.021,-.062+Math.abs(i)*.004,.158,basic(0xf4f4ee));
+  for(const sx of[-.07,.07]){B(hd,.075,.03,.03,0x1a0f0f,sx,.02,.15,basic(0x0b0707));const v=B(hd,.05,.004,.004,0xb3211b,sx,.02,.208,basic(0xb3211b));v.rotation.z=sx>0?.5:-.5}
+  B(hd,.1,.07,.02,0x5a4638,.06,.1,.165,mat(0x5a4638));
+  B(g,.3,.13,.02,0xd2d2cd,0,.98,.152);B(g,.012,.1,.012,0xcfcfcb,-.05,1.4,.15);B(g,.012,.12,.012,0xcfcfcb,.05,1.4,.15);
+  B(u.aL,.135,.2,.135,0x6a0c0c,0,-.55,0);B(u.aR,.135,.14,.135,0x6a0c0c,0,-.62,0);
+  B(g,.46,.05,.3,0x2a2a2a,0,.84,0);
+  for(let i=0;i<5;i++){const st=B(hd,.025,.22+i%2*.08,.03,0,-.12+i*.06,.06,-.17,hm);st.rotation.x=.4}
   const rl=new THREE.PointLight(0xffd8d0,.5,7);rl.position.y=1.3;g.add(rl);
   return g;
 }
@@ -2116,6 +2167,10 @@ function makePlayerAvatar(pr){
   if(c[5]===1){Cy(hd,.2,.12,c[0],0,.17,0);B(hd,.28,.02,.22,c[0],0,.12,.2)}
   else if(c[5]===2){const k=new THREE.Mesh(new THREE.SphereGeometry(.21,10,8,0,Math.PI*2,0,Math.PI*.5),mat(c[0]));k.position.set(0,.05,0);hd.add(k)}
   buildFace(hd,c,pr.fc);
+  const dk=Math.max(0,((c[0]>>16&255)*.6|0)<<16|((c[0]>>8&255)*.6|0)<<8|((c[0]&255)*.6|0));
+  const col=new THREE.Mesh(new THREE.TorusGeometry(.09,.03,6,14),mat(c[0]));col.rotation.x=Math.PI/2;col.position.y=1.53;g.add(col);
+  B(g,.45,.05,.3,0x1c1c1c,0,.86,0);B(g,.34,.42,.14,dk,0,1.2,-.19);B(g,.03,.34,.02,dk,-.12,1.24,.12);B(g,.03,.34,.02,dk,.12,1.24,.12);
+  if(c[4]===1)B(hd,.3,.05,.08,0,0,.12,.13,hm);
   avatarRig(g,c);
   g.userData.tag=tagSprite(cleanNick(pr.n)||'Pemain');g.add(g.userData.tag);return g;
 }
@@ -3278,6 +3333,12 @@ function makeBunny(){
   B(saw,.2,.22,.42,0xd2691e,0,0,0);B(saw,.18,.1,.3,0x222222,0,-.15,-.02);B(saw,.04,.14,.3,0x1a1a1a,0,.2,-.02);B(saw,.04,.05,.22,0x1a1a1a,0,.1,-.3);
   B(saw,.05,.14,.74,0xaeb3b8,0,0,.58);B(saw,.07,.17,.76,0x2a2a2a,0,0,.58);B(saw,.06,.04,.05,0x7a0a0a,0,.09,.7);B(saw,.06,.03,.08,0x7a0a0a,0,-.09,.45);
   u.teeth=[];for(let i=0;i<14;i++)for(const sy of[-1,1])u.teeth.push({m:B(saw,.09,.025,.035,0x777b7e,0,sy*.088,.25),i,sy});
+  /* v27: detail — gigi taring, cakar, jahitan, telinga sobek, tali pinggang */
+  B(hd,.025,.07,.02,0xf2efe6,-.05,-.12,.22);B(hd,.025,.07,.02,0xf2efe6,.05,-.12,.22);
+  for(const sx of[-1,1])for(let i=0;i<3;i++)B(u.aL===undefined?g:(sx<0?u.aL:u.aR),.015,.015,.09,0x2a2420,(i-1)*.05,-.9,.04);
+  for(let i=0;i<5;i++){const t=B(hd,.012,.05,.012,0x1a1a1a,-.1+i*.01,.02+i*.012,.19,basic(0x1a1a1a));t.rotation.z=1.2}
+  const bt=new THREE.Mesh(new THREE.TorusGeometry(.24,.025,6,18),mat(0x6b5a3c));bt.rotation.x=Math.PI/2;bt.scale.set(1,1.2,1);bt.position.set(0,.92,0);g.add(bt);
+  B(u.earL,.03,.07,.05,0x2a0a0a,-.04,.42,0);
   const rl=new THREE.PointLight(0xff3a22,.55,7);rl.position.set(0,1.75,.3);g.add(rl);
   return g;
 }
@@ -3504,8 +3565,6 @@ const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 /* ---- rangka avatar: tangan, senter di tangan kanan, sepatu ---- */
 function avatarRig(g,c){
   const u=g.userData;g.rotation.order='YXZ';
-  for(const arm of[u.aL,u.aR])B(arm,.13,.13,.13,c[2],0,-.64,0);
-  for(const lg of[u.lL,u.lR])B(lg,.19,.09,.28,0x141416,0,-.85,.05);
   const fl=new THREE.Group();fl.position.set(0,-.66,0);u.aR.add(fl);
   const body=new THREE.Mesh(new THREE.CylinderGeometry(.035,.04,.26,8),mat(0x2b3034));body.position.y=-.1;fl.add(body);
   const hd=new THREE.Mesh(new THREE.CylinderGeometry(.06,.042,.07,10),mat(0x55606a));hd.position.y=-.25;fl.add(hd);
@@ -4292,14 +4351,20 @@ function gunPose19(dt){
 
 /* ===== v17e: menu jeda + pengaturan ===== */
 const SET17=Object.assign({vol:1,mute:false,q:2,hd:1,grass:true,part:true,mist:true,wind:true,bright:1,sens:1},(()=>{try{return JSON.parse(localStorage.getItem('mc_set')||'{}')||{}}catch(e){return{}}})());
-Object.assign(SET17,{q:2,hd:3,grass:true,part:true,mist:true,wind:true});/* grafik dikunci permanen: Tinggi + UE4 + semua efek */
+if(SET17.gl==null)SET17.gl=3;SET17.q=Math.max(0,Math.min(3,SET17.q==null?2:SET17.q|0));if(SET17.q===2&&!SET17.gq){SET17.gq=1}
+SET17.js=SET17.js||1;SET17.bs=SET17.bs||1;SET17.ho=SET17.ho||1;SET17.jm=SET17.jm|0;SET17.hud=Object.assign({jx:0,jy:0},SET17.hud||{});SET17.be=SET17.be||{};
+const GPRE=[{q:0,gl:0,grass:false,mist:false},{q:1,gl:1,grass:true,mist:true},{q:2,gl:2,grass:true,mist:true},{q:3,gl:3,grass:true,mist:true}];
+function hudApply(){const d=document.documentElement.style,h=SET17.hud;d.setProperty('--js',SET17.js);d.setProperty('--bs',SET17.bs);d.setProperty('--ho',SET17.ho);
+  d.setProperty('--jx',(h.jx||0)+'px');d.setProperty('--jy',(h.jy||0)+'px');
+  for(const id of HEID){const el=document.getElementById(id);if(!el)continue;const b=SET17.be[id]||[0,0,1];el.setAttribute('data-e','');el.style.setProperty('--x',b[0]+'px');el.style.setProperty('--y',b[1]+'px');el.style.setProperty('--s',b[2])}}
+const HEID=['bMap','bBag','bLight','bTake','bHide','bRun','bGun','bFire','bSwap'];
 const saveSet17=()=>{try{localStorage.setItem('mc_set',JSON.stringify(SET17))}catch(e){}};
 const GRASSL=[],MISTL=[];
 function applySet17(){
-  const dpr=window.devicePixelRatio||1,pr=[.5,.65,Math.min(dpr,.8)][SET17.q|0]||.8;
+  const dpr=window.devicePixelRatio||1,pr=[.5,.65,Math.min(dpr,.8),Math.min(dpr,1.25)][SET17.q|0]||.8;
   try{renderer.setPixelRatio(Math.max(.5,pr));resize()}catch(e){}
   if(window.MASTER17)MASTER17.gain.value=SET17.mute?0:Math.max(0,Math.min(1.5,SET17.vol));
-  GRASSL.forEach(m=>m.visible=!!SET17.grass);MISTL.forEach(m=>m.visible=!!SET17.mist);try{gxApply()}catch(e){}
+  GRASSL.forEach(m=>m.visible=!!SET17.grass);MISTL.forEach(m=>m.visible=!!SET17.mist);try{gxApply()}catch(e){}try{hudApply()}catch(e){}
   const cv=renderer.domElement;cv.style.filter=Math.abs(SET17.bright-1)>.01?'brightness('+SET17.bright+')':'';
 }
 function pauseOpen17(){
@@ -4316,15 +4381,17 @@ function pauseClose17(){
 function pauseSync17(){
   const P=$('pause');
   P.querySelectorAll('[data-s]').forEach(el=>{const k=el.dataset.s;
-    if(el.type==='range')el.value=k==='vol'?SET17.vol*100:k==='bright'?SET17.bright*100:SET17.sens*100;
+    if(el.type==='range')el.value=(SET17[k]||0)*100;
     else if(el.dataset.v!==undefined)el.setAttribute('aria-pressed',String(SET17[k]==el.dataset.v));
     else el.setAttribute('aria-pressed',String(!!SET17[k]))});
+  P.querySelectorAll('[data-pre]').forEach(el=>{const g=GPRE[+el.dataset.pre];el.setAttribute('aria-pressed',String(g.q===SET17.q&&g.gl===SET17.gl))});
   P.querySelectorAll('[data-o]').forEach(el=>{el.textContent=Math.round(+el.parentNode.querySelector('input').value)+'%'});
 }
 (function(){
   const P=$('pause');
   P.addEventListener('input',e=>{const el=e.target;if(el.type!=='range')return;const k=el.dataset.s,v=+el.value/100;SET17[k]=v;if(k==='vol')SET17.mute=false;applySet17();pauseSync17()});
   P.addEventListener('click',e=>{const el=e.target.closest('button');if(!el)return;
+    if(el.dataset.pre!==undefined){Object.assign(SET17,GPRE[+el.dataset.pre]);applySet17();pauseSync17();saveSet17();return}
     if(el.dataset.s&&el.dataset.v!==undefined){SET17[el.dataset.s]=+el.dataset.v;applySet17();pauseSync17();saveSet17()}
     else if(el.dataset.s){SET17[el.dataset.s]=!SET17[el.dataset.s];applySet17();pauseSync17();saveSet17()}
   });
@@ -4481,22 +4548,42 @@ function buildFront(map,group,R,slots){
   MAPS.forEach(adj);try{Object.values(BASEMAPS9).forEach(adj)}catch(e){}
   flash.intensity=1.7;flash.distance=24;nearL.intensity=.8;amb.intensity=.85;
 })();
-/* ---- joystick melayang: muncul di mana pun jempol kiri menyentuh ---- */
+/* ---- analog: dasar TETAP (tidak ikut bergeser), tuas mengikuti sentuhan di mana pun ---- */
 let joyHome=true;
-function joyPlace(cx,cy){const r=60,m=r+10;cx=Math.max(m,Math.min(innerWidth*.5-m,cx));cy=Math.max(m+30,Math.min(innerHeight-m,cy));joy.style.left=(cx-r)+'px';joy.style.top=(cy-r)+'px';joy.style.bottom='auto';joyHome=false}
+function joyPlace(cx,cy){const r=60*(SET17.js||1),m=r+10;cx=Math.max(m,Math.min(innerWidth*.5-m,cx));cy=Math.max(m+30,Math.min(innerHeight-m,cy));joy.style.left=(cx-60)+'px';joy.style.top=(cy-60)+'px';joy.style.bottom='auto';joyHome=false}
 function joyReset(){joy.style.left='';joy.style.top='';joy.style.bottom='';joy.classList.remove('act');joyHome=true;JOY.x=JOY.y=0;knob.style.transform=''}
 function joyDrag(e){
-  const r=joy.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=(e.clientX-cx)/(r.width/2),dy=(e.clientY-cy)/(r.height/2);const l=Math.hypot(dx,dy);
-  if(l>1.15){const k=(l-1.15)/l;joyPlace(cx+(e.clientX-cx)*k*.9,cy+(e.clientY-cy)*k*.9)}
-  const l2=Math.hypot(dx,dy);if(l2>1){dx/=l2;dy/=l2}
+  const r=joy.getBoundingClientRect(),R=r.width/2,cx=r.left+R,cy=r.top+r.height/2;let dx=(e.clientX-cx)/R,dy=(e.clientY-cy)/R;
+  const l=Math.hypot(dx,dy);if(l>1){dx/=l;dy/=l}
   JOY.x=Math.abs(dx)<.12?0:dx;JOY.y=Math.abs(dy)<.12?0:dy;knob.style.transform='translate('+(dx*40)+'px,'+(dy*40)+'px)';
 }
 document.addEventListener('pointerdown',e=>{
-  if(!S.on||CIN.on||joyId!==null||e.pointerType==='mouse'||e.target.closest('.hb,#top-r,.scr,#chatBox,#bChat,#cinSkip,#inv,#invAct,#invP,#gunPad'))return;
-  if(e.clientX<innerWidth*.5&&e.clientY>innerHeight*.2){joyId=e.pointerId;joyPlace(e.clientX,e.clientY);joy.classList.add('act');e.stopPropagation()}
+  if(!S.on||S.paused||CIN.on||joyId!==null||e.pointerType==='mouse'||e.target.closest('.hb,#top-r,.scr,#chatBox,#bChat,#cinSkip,#inv,#invAct,#invP,#gunPad,#hedit'))return;
+  if(e.clientX<innerWidth*.5&&e.clientY>innerHeight*.2){joyId=e.pointerId;if(!SET17.jm)joyPlace(e.clientX,e.clientY);joy.classList.add('act');joyDrag(e);e.stopPropagation()}
 },true);
 document.addEventListener('pointermove',e=>{if(e.pointerId===joyId)joyDrag(e)});
 ['pointerup','pointercancel'].forEach(n=>document.addEventListener(n,e=>{if(e.pointerId===joyId){joyId=null;joyReset()}}));
+/* ---- editor posisi HUD: tiap tombol berdiri sendiri ---- */
+(function(){
+  const he=$('hedit'),sz=$('heSz');let cur=null,sel=null;
+  const els=()=>[joy].concat(HEID.map(i=>document.getElementById(i)).filter(Boolean));
+  const pick=e=>{let best=null,ba=1e12;for(const el of els()){const r=el.getBoundingClientRect();if(r.width&&e.clientX>r.left-8&&e.clientX<r.right+8&&e.clientY>r.top-8&&e.clientY<r.bottom+8){const a=r.width*r.height;if(a<ba){ba=a;best=el}}}return best};
+  const mark=el=>{sel=el;els().forEach(x=>x.classList.toggle('sel',x===el));$('heS').style.visibility=el?'visible':'hidden';if(el)sz.value=(el===joy?SET17.js:(SET17.be[el.id]||[0,0,1])[2])*100};
+  const close=()=>{he.style.display='none';document.body.classList.remove('hedit');mark(null);$('pause').style.display='flex';saveSet17()};
+  $('pHud').addEventListener('click',()=>{$('pause').style.display='none';he.style.display='flex';document.body.classList.add('hedit');mark(null)});
+  $('pHudR').addEventListener('click',()=>{SET17.hud={jx:0,jy:0};SET17.be={};SET17.js=SET17.bs=SET17.ho=1;hudApply();pauseSync17();saveSet17()});
+  $('heOk').addEventListener('click',close);
+  $('heR').addEventListener('click',()=>{SET17.hud={jx:0,jy:0};SET17.be={};SET17.js=1;hudApply();mark(null)});
+  sz.addEventListener('input',()=>{if(!sel)return;const v=+sz.value/100;if(sel===joy)SET17.js=v;else{const b=SET17.be[sel.id]=SET17.be[sel.id]||[0,0,1];b[2]=v}hudApply()});
+  he.addEventListener('pointerdown',e=>{if(e.target.closest('.bar'))return;const el=pick(e);mark(el);if(!el)return;
+    const r=el.getBoundingClientRect(),b=el===joy?[SET17.hud.jx||0,SET17.hud.jy||0]:(SET17.be[el.id]||[0,0,1]);
+    cur={el,id:e.pointerId,x:e.clientX,y:e.clientY,ox:b[0],oy:b[1],r};he.setPointerCapture(e.pointerId)});
+  he.addEventListener('pointermove',e=>{if(!cur||e.pointerId!==cur.id)return;const r=cur.r;
+    let dx=e.clientX-cur.x,dy=e.clientY-cur.y;dx=Math.max(-r.left,Math.min(innerWidth-r.right,dx));dy=Math.max(-r.top,Math.min(innerHeight-r.bottom,dy));
+    if(cur.el===joy){SET17.hud.jx=Math.round(cur.ox+dx);SET17.hud.jy=Math.round(cur.oy-dy)}
+    else{const b=SET17.be[cur.el.id]=SET17.be[cur.el.id]||[0,0,1];b[0]=Math.round(cur.ox+dx);b[1]=Math.round(cur.oy+dy)}hudApply()});
+  ['pointerup','pointercancel'].forEach(n=>he.addEventListener(n,e=>{if(cur&&e.pointerId===cur.id){cur=null;saveSet17()}}));
+})();
 /* ---- animasi datang (awal) & keluar (akhir) ---- */
 const CIN={on:false,k:'in',t:0,dur:10,party:[],path:null,sp:4.6,gate:false,door:null,fin:null};
 function pathMake(pts){const seg=[];let T=0;for(let i=1;i<pts.length;i++){const d=Math.hypot(pts[i].x-pts[i-1].x,pts[i].z-pts[i-1].z);seg.push(d);T+=d}return{pts,seg,T}}
@@ -6027,7 +6114,7 @@ vanSync=function(){_vs();const V0=VAN;if(!V0)return;
 
 /* ===== v24: resolusi adaptif — otomatis turun saat berat, naik lagi saat stabil ===== */
 const AR={s:1,last:0,sum:0,n:0,ok:0,cool:0,wait:6};
-function arBase(){const dpr=window.devicePixelRatio||1;return [.5,.65,Math.min(dpr,.8)][SET17.q|0]||.8}
+function arBase(){const dpr=window.devicePixelRatio||1;return [.5,.65,Math.min(dpr,.8),Math.min(dpr,1.25)][SET17.q|0]||.8}
 function arApply(){try{renderer.setPixelRatio(Math.max(.5,arBase()*AR.s));resize()}catch(e){}}
 const _as17=applySet17;
 applySet17=function(){_as17.apply(this,arguments);arApply()};
