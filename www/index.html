@@ -6591,6 +6591,78 @@ function monLoco(E,dt){
     u.hR.rotation.x=0;
   }
 }
+/* ===== v30: hemat performa untuk HP lemah — TAMPILAN & PENGATURAN GRAFIK TIDAK BERUBAH =====
+   1) benda yang sudah >98% tertutup kabut tidak digambar (draw-call turun banyak, hasil gambar sama)
+   2) lantai gedung yang sedang tidak terlihat tidak dihitung ulang posisinya tiap frame */
+(function(){
+  const V=new THREE.Vector3(),LIST=[],OU=THREE.Object3D.prototype.updateMatrixWorld;
+  let n=0,pn=0,sc=-1,fl0=null;
+  function build(){
+    LIST.length=0;
+    scene.traverse(o=>{
+      if(!o.isMesh||o.isInstancedMesh||o.isSkinnedMesh||!o.geometry)return;
+      const m=o.material;if(!m||Array.isArray(m)||m.fog===false)return;
+      const g=o.geometry;if(!g.boundingSphere)g.computeBoundingSphere();
+      if(!g.boundingSphere||!isFinite(g.boundingSphere.radius))return;
+      LIST.push(o)});
+    sc=scene.children.length;fl0=FL;
+  }
+  function pass(){
+    if((++pn%60)===1||sc!==scene.children.length||fl0!==FL)build();
+    for(const f of FL){const g=f.L&&f.L.group;if(g&&!g._fzp){g._fzp=1;
+      g.updateMatrixWorld=function(force){if(!this.visible){if(this._fzd)return;this._fzd=1}else this._fzd=0;return OU.call(this,force)}}}
+    const fg=scene.fog;
+    if(!fg||!(fg.density>0)||S.spec||window.__pf0){for(const o of LIST)if(o.layers.mask!==1)o.layers.set(0);return}
+    const lim=2.0/fg.density,cx=camera.position.x,cy=camera.position.y,cz=camera.position.z;
+    for(const o of LIST){
+      const bs=o.geometry.boundingSphere;
+      V.copy(bs.center).applyMatrix4(o.matrixWorld);
+      const d=Math.hypot(V.x-cx,V.y-cy,V.z-cz)-bs.radius*o.matrixWorld.getMaxScaleOnAxis();
+      if(d>lim){if(o.layers.mask!==2)o.layers.set(1)}
+      else if(d<lim-3){if(o.layers.mask!==1)o.layers.set(0)}
+    }
+  }
+  const R1=renderer.render;
+  renderer.render=function(s,c){if(s===scene&&(++n%4)===0){try{pass()}catch(e){window.__mcErr&&window.__mcErr(e)}}return R1.call(this,s,c)};
+})();
+/* ===== v31: urutan gambar benda solid dari depan ke belakang (kurangi overdraw di GPU HP; hasil gambar sama) ===== */
+(function(){
+  try{
+    const __ms=function(a,b){
+      if(a.groupOrder!==b.groupOrder)return a.groupOrder-b.groupOrder;
+      if(a.renderOrder!==b.renderOrder)return a.renderOrder-b.renderOrder;
+      const ma=a.material,mb=b.material;
+      if((ma&&ma.depthTest===false)||(mb&&mb.depthTest===false)){
+        if(a.program!==b.program)return(a.program?a.program.id:0)-(b.program?b.program.id:0);
+        if(ma!==mb)return ma.id-mb.id;
+      }
+      if(a.z!==b.z)return a.z-b.z;
+      return a.id-b.id;
+    };renderer.setOpaqueSort(__ms);
+  }catch(e){window.__mcErr&&window.__mcErr(e)}
+})();
+/* ===== v32: psikopat tidak diam lagi saat targetnya di tangga =====
+   Dulu: kalau tujuan (mis. pemain yang sedang naik tangga) ada di sel tak bisa dilewati, pencari jalan gagal
+   dan Jeff berhenti di tempat (sering tepat di depan tangga). Sekarang ia berjalan ke sel terdekat yang bisa dicapai. */
+(function(){
+  const _ns=nextStep;
+  nextStep=function(ax,ay,bx,by){
+    const r=_ns(ax,ay,bx,by);
+    if(r)return r;
+    const s=ay*GW+ax,prev=new Int16Array(GW*GH).fill(-1),q=[s],D=[[1,0],[-1,0],[0,1],[0,-1]];
+    prev[s]=s;let best=s,bd=(ax-bx)*(ax-bx)+(ay-by)*(ay-by);
+    for(let i=0;i<q.length;i++){
+      const c=q[i],cx=c%GW,cy=(c/GW)|0,dd=(cx-bx)*(cx-bx)+(cy-by)*(cy-by);
+      if(dd<bd){bd=dd;best=c}
+      for(const d of D){const nx=cx+d[0],ny=cy+d[1];
+        if(nx<0||ny<0||nx>=GW||ny>=GH||solid(nx,ny)||prev[ny*GW+nx]!==-1)continue;
+        prev[ny*GW+nx]=c;q.push(ny*GW+nx)}
+    }
+    if(best===s)return[ax,ay];
+    let c=best;while(prev[c]!==s)c=prev[c];
+    return[c%GW,(c/GW)|0];
+  };
+})();
 </script>
 
 </body></html>
