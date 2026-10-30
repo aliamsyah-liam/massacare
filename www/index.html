@@ -416,10 +416,11 @@ function blocked(x,z,r){
     return true}
   return false;
 }
+const NSP=new Int16Array(48*38);
 /* BFS dari sel a ke sel b; mengembalikan sel berikutnya, atau null */
 function nextStep(ax,ay,bx,by){
   if(ax===bx&&ay===by)return[bx,by];
-  const prev=new Int16Array(GW*GH).fill(-1),q=[ay*GW+ax];prev[ay*GW+ax]=ay*GW+ax;
+  const prev=NSP;prev.fill(-1);const q=[ay*GW+ax];prev[ay*GW+ax]=ay*GW+ax;
   const D=[[1,0],[-1,0],[0,1],[0,-1]];
   for(let i=0;i<q.length;i++){
     const c=q[i],cx=c%GW,cy=(c/GW)|0;
@@ -432,7 +433,7 @@ function nextStep(ax,ay,bx,by){
   }
   if(prev[by*GW+bx]===-1)return null;
   let c=by*GW+bx;
-  while(prev[c]!==ay*GW+ax)c=prev[c];
+  let nn=0;while(prev[c]!==ay*GW+ax){c=prev[c];if(c<0||++nn>4000)return null}
   return[c%GW,(c/GW)|0];
 }
 function los(x0,z0,x1,z1){
@@ -2410,7 +2411,7 @@ function movePlayer(dt){
   if(wantRun)S.stam=Math.max(0,S.stam-dt*.26);else S.stam=Math.min(1,S.stam+dt*(len>0?.12:.22));
   if(S.stam<=0)S.runLock=true;if(S.runLock&&S.stam>.3)S.runLock=false;
   S.bob+=spd*dt*(wantRun?1.9:1.7);
-  $('stam').firstElementChild.style.width=(S.stam*100)+'%';
+  {const w=(S.stam*100).toFixed(0);if(w!==movePlayer._w){movePlayer._w=w;$('stam').firstElementChild.style.width=w+'%'}}
 }
 /* ===== AI psikopat ===== */
 const MP={on:false,room:null,code:'',myPeer:null,isHost:true,av:new Map(),caught:[],push:0,ready:false};
@@ -2515,8 +2516,9 @@ function updateMonster(dt,M){
 }
 function die(by){
   if(S.dead)return;S.dead=true;S.deadT=0;S.hDir=0;S.killer=by||null;
-  if(S.hid){S.x=S.px;S.z=S.pz;S.hid=null;$('hidden').style.display='none'}
-  flash.visible=S.flash;screech();thump(.8);monRoar(by||MON);DF.spec=false;DF.start(by);
+  try{if(S.hid){if(isFinite(S.px)&&isFinite(S.pz)){S.x=S.px;S.z=S.pz}S.hid=null;$('hidden').style.display='none'}}catch(e){window.__mcErr(e);S.hid=null}
+  try{flash.visible=S.flash;screech();thump(.8);monRoar(by||MON)}catch(e){window.__mcErr(e)}
+  try{DF.spec=false;DF.start(by)}catch(e){window.__mcErr(e);DF.on=false;DF.dur=.8}
 }
 function showEnd(win){
   $('hud').style.display='none';$('hud').classList.remove('spec');$('end').style.display='flex';$('bSpec').style.display=(S.mode==='online'&&specCands().length)?'':'none';
@@ -2551,6 +2553,7 @@ function startGameInner(idx,mode,code){
   if(mode==='online')mpEnter();
   $('menu').style.display='none';$('lobby').style.display='none';$('end').style.display='none';$('hud').style.display='block';$('peers').textContent=mode==='online'?'Room '+code:'';
   S.on=true;updateObj();toast((mode==='online'?'Kode room: '+code+' (bagikan ke temanmu)':map.mission.goal+QGOAL)+' · Jeff + Bunny Man berkeliaran');startIntro();
+  setTimeout(()=>{try{dfEls();if(!DF.cache[0])DF.cache[0]=makeMonster();if(!DF.cache[1])DF.cache[1]=makeBunny()}catch(e){window.__mcErr&&window.__mcErr(e)}},1800);
   if(!started){started=true;lastTs=performance.now();requestAnimationFrame(loop)}
 }
 let LOOPERR=0;
@@ -2568,69 +2571,136 @@ function loop(now){
   requestAnimationFrame(loop);
   if(!fpsGate(now))return;
   try{gxPerf(now)}catch(e){}
-  try{if(innerWidth!==RW||innerHeight!==RH)resize();loopBody(now)}catch(e){window.__mcErr(e);if(++LOOPERR===1)try{toast('Terjadi kesalahan kecil, game tetap jalan')}catch(_){}}
+  try{if(innerWidth!==RW||innerHeight!==RH)resize();loopBody(now)}catch(e){window.__mcErr(e);try{renderer.render(scene,camera)}catch(_){}if(++LOOPERR===1)try{toast('Terjadi kesalahan kecil, game tetap jalan')}catch(_){}}
 }
 let dtS=0;
+/* ===== anti-stuck: penjaga supaya game tidak pernah macet ===== */
+const SG={esc:0,dead:0,clb:0,usk:0,pz:0,ui:0};
+const TC={n:0,seen:false};
+['touchstart','touchmove','touchend','touchcancel'].forEach(n=>addEventListener(n,e=>{TC.seen=true;TC.n=e.touches?e.touches.length:0},{passive:true,capture:true}));
+function inputReset(){try{joyId=null;lookId=null;joyReset();RUN=false;bRun.classList.remove('on');for(const k in K)K[k]=0}catch(e){}}
+addEventListener('blur',inputReset);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)inputReset()});
+function unstick(){
+  const x0=S.x,z0=S.z;
+  for(let r=.4;r<=10;r+=.4){const n=Math.max(8,Math.round(r*6));
+    for(let i=0;i<n;i++){const a=i/n*6.2832,x=x0+Math.cos(a)*r,z=z0+Math.sin(a)*r;
+      if(!blocked(x,z,.42)){S.x=x;S.z=z;try{toast('Posisi diperbaiki')}catch(e){}return true}}}
+  const p=(FRM&&S.f===0&&FRM.sp)||(L&&L.start);if(p){S.x=p.x;S.z=p.z}
+  return false;
+}
+function forceCinEnd(){
+  try{cinEnd()}catch(e){window.__mcErr(e);CIN.on=false;
+    try{$('cinSkip').style.display='none';$('cinT').style.opacity=0;$('fade').style.opacity=0;CIN.party.forEach(m=>{m.parent&&m.parent.remove(m)});CIN.party=[];if(GATE)GATE.set(0)}catch(_){}
+    try{if(CIN.k==='in'){flash.visible=true;$('hud').style.display='block'}else showEnd(true)}catch(_){}}
+  CIN.on=false;CIN.err=0;
+}
+function resetMon(E){try{E.st='patrol';E.tx=null;E.last=null;E.step=null;E.goal=null;E.gc=false;E.clb=null;E.yR=0;E.stepT=0;E.ck=''}catch(_){}}
+function pausedGuard(dt){
+  let open=false;try{open=!!MAPV.open||$('hedit').style.display==='flex'}catch(e){}
+  if(S.paused&&$('pause').style.display==='none'&&!open){SG.pz+=dt;if(SG.pz>.6){SG.pz=0;S.paused=false;try{AC&&AC.resume()}catch(e){}lastTs=performance.now()}}else SG.pz=0;
+}
+function stuckGuard(dt){
+  const endHidden=$('end').style.display==='none';
+  if(!isFinite(S.x)||!isFinite(S.z)){const p=(FRM&&FRM.sp)||(L&&L.start)||{x:cc(5),z:cc(5)};S.x=p.x;S.z=p.z}
+  if(!isFinite(S.yaw))S.yaw=0;if(!isFinite(S.pitch))S.pitch=0;if(!isFinite(S.bob))S.bob=0;if(!isFinite(S.stam))S.stam=1;
+  /* sentuhan sudah lepas semua tapi joystick/kamera masih "nyangkut" */
+  if(TC.seen&&TC.n===0&&(joyId!==null||lookId!==null||JOY.x||JOY.y))inputReset();
+  /* keluar gerbang tapi animasi/layar akhir tidak muncul */
+  if(S.esc&&!CIN.on&&endHidden&&!S.spec){SG.esc+=dt;if(SG.esc>2.5){SG.esc=0;showEnd(true)}}else SG.esc=0;
+  /* tertangkap tapi layar akhir tidak muncul */
+  if(S.dead&&!S.spec){SG.dead+=dt;if(SG.dead>(DF.dur||5.4)+2&&endHidden){SG.dead=0;try{deadEnd()}catch(e){window.__mcErr(e)}if($('end').style.display==='none'&&!S.spec)showEnd(false)}}else SG.dead=0;
+  /* animasi tangga nyangkut */
+  if(S.clb){SG.clb+=dt;if(SG.clb>6){SG.clb=0;S.clb=null;S.stw=null;CLBP=0;$('fade').style.opacity=0}}else SG.clb=0;
+  /* badan terjepit di dalam tembok / gerbang / pintu */
+  if(S.on&&!S.dead&&!S.esc&&!S.clb&&!S.stw&&!S.hid&&!S.spec&&!CIN.on&&L){
+    if(blocked(S.x,S.z,.3)){SG.usk+=dt;if(SG.usk>.4){SG.usk=0;unstick()}}else SG.usk=0;
+  }else SG.usk=0;
+}
 function loopBody(now){
   let dt=Math.min(.05,Math.max(.001,(now-lastTs)/1000));lastTs=now;
   if(dt<.034){dtS=dtS?dtS*.6+dt*.4:dt;dt=dtS}else dtS=0;
   if(!S.on)return;
-  if(S.paused&&S.mode!=='online'){renderer.render(scene,camera);return}
+  if(S.paused&&S.mode!=='online'){try{pausedGuard(dt)}catch(e){window.__mcErr(e)}try{renderer.render(scene,camera)}catch(e){window.__mcErr(e)}return}
   S.t+=dt;
-  if(CIN.on){cinFrame(dt);if(S.mode==='online')try{mpFrame(dt)}catch(e){window.__mcErr(e)}try{sndFrame(dt,99)}catch(e){window.__mcErr(e)}try{windFrame(dt)}catch(e){window.__mcErr(e)}renderer.render(scene,camera);return}
-  if(!S.dead&&!S.esc)movePlayer(dt);
+  try{stuckGuard(dt)}catch(e){window.__mcErr(e)}
+  if(CIN.on){
+    try{cinFrame(dt)}catch(e){window.__mcErr(e);if(++CIN.err>=3)forceCinEnd()}
+    if(CIN.on&&CIN.t>CIN.dur+2.5)forceCinEnd();
+    if(S.mode==='online')try{mpFrame(dt)}catch(e){window.__mcErr(e)}
+    try{sndFrame(dt,99)}catch(e){window.__mcErr(e)}
+    try{windFrame(dt)}catch(e){window.__mcErr(e)}
+    try{renderer.render(scene,camera)}catch(e){window.__mcErr(e)}
+    return;
+  }
+  if(!S.dead&&!S.esc)try{movePlayer(dt)}catch(e){window.__mcErr(e)}
   try{stairCheck(dt)}catch(e){window.__mcErr(e)}
   // item
-  for(const it of L.items){if(it.got)continue;it.mesh.rotation.y+=dt*.5;it.mesh.position.y=(it.y||1)+Math.sin(S.t*2+it.id)*.015}
-  $('bTake').classList.toggle('on',!S.hid&&!S.dead&&!S.clb&&(!!nearestItem(3.2)||!!nearestCont(3.1)||!!nearestWeapon(3)||!!q19Near(3.2)));
-  $('bHide').classList.toggle('on',!!S.hid||(!S.dead&&!!nearestHide(2.6)));
+  try{
+    for(const it of L.items){if(it.got)continue;it.mesh.rotation.y+=dt*.5;it.mesh.position.y=(it.y||1)+Math.sin(S.t*2+it.id)*.015}
+    SG.ui-=dt;
+    if(SG.ui<=0){SG.ui=.1;
+      $('bTake').classList.toggle('on',!S.hid&&!S.dead&&!S.clb&&(!!nearestItem(3.2)||!!nearestCont(3.1)||!!nearestWeapon(3)||!!q19Near(3.2)));
+      $('bHide').classList.toggle('on',!!S.hid||(!S.dead&&!!nearestHide(2.6)));
+    }
+  }catch(e){window.__mcErr(e)}
   try{q19Frame(dt)}catch(e){window.__mcErr(e)}
   // monster
   const online=S.mode==='online';
   if(!online||MP.isHost){
     for(const E of ENTS){
-      const caught=stepMonster(dt,E);
-      for(const id of caught){
-        if(!online||id===MP.myPeer)die(E);
-        else if(!MP.caught.some(c=>c.id===id)){MP.caught.push({id,t:S.t});E.grace=Math.max(E.grace||0,4.5);E.spd=0}
+      let caught=null;
+      try{caught=stepMonster(dt,E)}catch(e){window.__mcErr(e);resetMon(E)}
+      if(caught&&caught.length)for(const id of caught){
+        try{
+          if(!online||id===MP.myPeer)die(E);
+          else if(!MP.caught.some(c=>c.id===id)){MP.caught.push({id,t:S.t});E.grace=Math.max(E.grace||0,4.5);E.spd=0}
+        }catch(e){window.__mcErr(e)}
       }
     }
   }
-  if(online)mpFrame(dt);
-  specUpdate(dt);
+  try{if(online)mpFrame(dt)}catch(e){window.__mcErr(e)}
+  try{specUpdate(dt)}catch(e){window.__mcErr(e)}
   let md=1e9,M=MON;
   for(const E of ENTS){
-    E.yS=(levOf(E.f|0)-levOf(S.f))*WALLH+(E.yR||0);E.mesh.position.set(E.x,E.yS,E.z);E.mesh.rotation.y=E.ry;animateHuman(E.mesh,E.spd,S.t);
-    if(E.kind===1)bunAnim(E);else{const u=E.mesh.userData,ch=E.st==='chase';u.head.rotation.z=Math.sin(S.t*1.3)*.12+(Math.sin(S.t*23)>.97?.25:0);u.head.rotation.x=ch?.25:Math.sin(S.t*.7)*.05;u.aR.rotation.x=-.5-(ch?.8:0);u.aL.rotation.x=.1+Math.sin(S.t*6)*.3*Math.min(1,E.spd/2)}
-    try{monLoco(E,dt)}catch(e){window.__mcErr&&window.__mcErr(e)}stunPose17(E,dt);E.mesh.visible=!(E.fh&&E.grace>0)&&((E.f|0)===S.f||FVS.has(E.f|0));
-    const d=edf(E,VX,VZ);if(d<md){md=d;M=E}
+    try{
+      E.yS=(levOf(E.f|0)-levOf(S.f))*WALLH+(E.yR||0);E.mesh.position.set(E.x,E.yS,E.z);E.mesh.rotation.y=E.ry;animateHuman(E.mesh,E.spd,S.t);
+      if(E.kind===1)bunAnim(E);else{const u=E.mesh.userData,ch=E.st==='chase';u.head.rotation.z=Math.sin(S.t*1.3)*.12+(Math.sin(S.t*23)>.97?.25:0);u.head.rotation.x=ch?.25:Math.sin(S.t*.7)*.05;u.aR.rotation.x=-.5-(ch?.8:0);u.aL.rotation.x=.1+Math.sin(S.t*6)*.3*Math.min(1,E.spd/2)}
+      try{monLoco(E,dt)}catch(e){window.__mcErr&&window.__mcErr(e)}stunPose17(E,dt);E.mesh.visible=!(E.fh&&E.grace>0)&&((E.f|0)===S.f||FVS.has(E.f|0));
+    }catch(e){window.__mcErr(e)}
+    try{const d=edf(E,VX,VZ);if(d<md){md=d;M=E}}catch(e){}
   }
-  const seen=((M.f|0)===S.f)&&los(M.x,M.z,VX,VZ);
-  if(!S.dead||S.spec){
-    const v=Math.max(0,Math.min(1,(14-md)/14))*(M.st==='chase'?1:seen?.6:.25);
-    $('danger').style.opacity=(v*.8).toFixed(2);
-    S.heart-=dt;
-    if(S.heart<=0&&md<18){thump(.1+.3*(1-md/18));setTimeout(()=>thump(.07+.2*(1-md/18)),170);S.heart=.4+1.1*(md/18)}
-  }
-  // kedip lampu
-  S.nextFlick-=dt;if(S.nextFlick<=0){S.flickT=.14;S.nextFlick=3+Math.random()*9}
-  if(S.flickT>0){S.flickT-=dt;amb.intensity=L.map.ambI*.3}else amb.intensity=L.map.ambI;
+  try{
+    const seen=((M.f|0)===S.f)&&los(M.x,M.z,VX,VZ);
+    if(!S.dead||S.spec){
+      const v=Math.max(0,Math.min(1,(14-md)/14))*(M.st==='chase'?1:seen?.6:.25);
+      $('danger').style.opacity=(v*.8).toFixed(2);
+      S.heart-=dt;
+      if(S.heart<=0&&md<18){thump(.1+.3*(1-md/18));setTimeout(()=>thump(.07+.2*(1-md/18)),170);S.heart=.4+1.1*(md/18)}
+    }
+    // kedip lampu
+    S.nextFlick-=dt;if(S.nextFlick<=0){S.flickT=.14;S.nextFlick=3+Math.random()*9}
+    if(S.flickT>0){S.flickT-=dt;amb.intensity=L.map.ambI*.3}else amb.intensity=L.map.ambI;
+  }catch(e){window.__mcErr(e)}
   // pintu keluar
   try{gateFrame(dt)}catch(e){window.__mcErr(e)}
   // kamera
   if(S.dead){
     S.deadT+=dt;
-    if(!S.spec){S.yaw=lerpAngle(S.yaw,Math.atan2(-((S.killer||M).x-S.x),-((S.killer||M).z-S.z)),Math.min(1,dt*8));dfUpdate(dt);$('danger').style.opacity=DF.red}
-    else if(DF.on&&DF.spec&&DF.spv){S.yaw=DF.spv.yaw;dfUpdate(dt);if(DF.t>=DF.dur)DF.clearScreen()}
-    if(S.deadT>DF.dur&&!S.spec&&$('end').style.display==='none')deadEnd();
+    try{
+      if(!S.spec){S.yaw=lerpAngle(S.yaw,Math.atan2(-((S.killer||M).x-S.x),-((S.killer||M).z-S.z)),Math.min(1,dt*8));dfUpdate(dt);$('danger').style.opacity=DF.red}
+      else if(DF.on&&DF.spec&&DF.spv){S.yaw=DF.spv.yaw;dfUpdate(dt);if(DF.t>=DF.dur)DF.clearScreen()}
+    }catch(e){window.__mcErr(e)}
+    try{if(S.deadT>DF.dur&&!S.spec&&$('end').style.display==='none')deadEnd()}catch(e){window.__mcErr(e);try{showEnd(false)}catch(_){}}
   }
-  camFrame(dt,1.65+Math.sin(S.bob)*.045,md);
-  if(S.dead&&(!S.spec||DF.spec))dfCamera();
-  witUpdate(dt);
-  sndFrame(dt,md);try{sawFrame(dt,md)}catch(e){window.__mcErr(e)}
+  try{camFrame(dt,1.65+Math.sin(S.bob)*.045,md)}catch(e){window.__mcErr(e)}
+  try{if(S.dead&&(!S.spec||DF.spec))dfCamera()}catch(e){window.__mcErr(e)}
+  try{witUpdate(dt)}catch(e){window.__mcErr(e)}
+  try{sndFrame(dt,md)}catch(e){window.__mcErr(e)}
+  try{sawFrame(dt,md)}catch(e){window.__mcErr(e)}
   try{gunFrame(dt)}catch(e){window.__mcErr(e)}
   try{windFrame(dt)}catch(e){window.__mcErr(e)}
-  renderer.render(scene,camera);
+  try{renderer.render(scene,camera)}catch(e){window.__mcErr(e)}
 }
 
 /* ===== Menu ===== */
@@ -4887,7 +4957,7 @@ document.addEventListener('pointermove',e=>{if(e.pointerId===joyId)joyDrag(e)});
   ['pointerup','pointercancel'].forEach(n=>he.addEventListener(n,e=>{if(cur&&e.pointerId===cur.id){cur=null;saveSet17()}}));
 })();
 /* ---- animasi datang (awal) & keluar (akhir) ---- */
-const CIN={on:false,k:'in',t:0,dur:10,party:[],path:null,sp:4.6,gate:false,door:null,fin:null};
+const CIN={err:0,on:false,k:'in',t:0,dur:10,party:[],path:null,sp:4.6,gate:false,door:null,fin:null};
 function pathMake(pts){const seg=[];let T=0;for(let i=1;i<pts.length;i++){const d=Math.hypot(pts[i].x-pts[i-1].x,pts[i].z-pts[i-1].z);seg.push(d);T+=d}return{pts,seg,T}}
 function pathAt(P,s){s=Math.max(0,Math.min(P.T,s));let i=0;while(i<P.seg.length-1&&s>P.seg[i]){s-=P.seg[i];i++}const a=P.pts[i],b=P.pts[i+1]||a,t=P.seg[i]?s/P.seg[i]:0;return{x:a.x+(b.x-a.x)*t,z:a.z+(b.z-a.z)*t,yaw:Math.atan2(b.x-a.x,b.z-a.z)}}
 const fp=(u,v)=>({x:FRM.x(u,v),z:FRM.z(u,v)});
@@ -4930,7 +5000,9 @@ function gateMark(open){
 function gateFrame(dt){
   if(!FRM||!GATE||S.f!==0)return;
   const open=!!(FL[0]&&FL[0].L.exit.open),g=fp(0,FRM.V-2.85),dg=Math.hypot(S.x-g.x,S.z-g.z);
-  const want=(VAN&&typeof QM!=='undefined'&&QM.vanOn)?(GATE.want?1:0):((open&&dg<11&&!S.dead&&!S.esc)?1:0),o=GATE.o+(want-GATE.o)*Math.min(1,dt*2.2);
+  let want=(VAN&&typeof QM!=='undefined'&&QM.vanOn)?(GATE.want?1:0):((open&&dg<11&&!S.dead&&!S.esc)?1:0);
+  if(!want&&GATE.o>.02&&!S.dead){try{const ff=toF(S.x,S.z);if(Math.abs(ff.u)<5.6&&ff.v>FRM.V-3.8&&ff.v<FRM.V+1.8)want=1}catch(e){}}
+  const o=GATE.o+(want-GATE.o)*Math.min(1,dt*2.2);
   if(Math.abs(o-GATE.o)>.002)GATE.set(o);
   if(GATE.gm&&open)GATE.gm.opacity=.3+.18*Math.sin(S.t*3);
   if(!open||S.dead||S.esc||S.hid||S.clb||S.spec)return;
@@ -4938,7 +5010,7 @@ function gateFrame(dt){
   if(!(VAN&&typeof QM!=='undefined'&&QM.vanOn)&&Math.abs(u)<4.3&&v>FRM.V-5.4){S.esc=true;blip(520);setTimeout(startOutro,60)}
 }
 function cinStart(kind){
-  CIN.k=kind;CIN.t=0;CIN.on=true;CIN.fin=null;CIN.gate=false;CIN.skip=false;CIN.eye=null;CIN.noGate=false;
+  CIN.k=kind;CIN.t=0;CIN.err=0;CIN.on=true;CIN.fin=null;CIN.gate=false;CIN.skip=false;CIN.eye=null;CIN.noGate=false;
   CIN.party=partyBuild();
   const V=FRM.V;let pts;
   if(kind==='in'){
